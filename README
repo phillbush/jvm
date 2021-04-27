@@ -1,0 +1,35 @@
+                                  jvm
+
+This is the implementation of a simple Java Virtual Machine.  This is
+the final project of the first semester of 2021 of the System Software
+course of the Computer Science department of the University of Brasilia.
+
+The following tools are implemented:
+• javap(1): Disassembles one or more class files.
+• java(1):  Launches a Java application.
+
+
+§ Files
+
+• util.[ch]:    miscellaneous routines
+• class.[ch]:   routines and definitions related to class structure
+• native.[ch]:  routines and definitions related to native code
+• memory.[ch]:  routines and definitions related to JRE memory
+• file.[ch]:    routines to read and free .class files
+• javap.c:      .class file disassembler
+• java.c:       .class file interpreter
+• tests/*:      collection of simple .java files for testing the jvm
+
+
+§ See Also
+
+The Java® Virtual Machine Specification: Java SE 8Edition,
+by Tim Lindholm, Frank Yellin, Gilad Bracha, Alex Buckley,
+Addison-Wesley, 2014.
+ISBN: 978-0-13-390590-8.
+https://docs.oracle.com/javase/specs/jvms/se8/html/
+
+
+§ License
+
+This software is in the public domain and is provided AS IS, with NO WARRANTY.

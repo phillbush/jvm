@@ -1,0 +1,222 @@
+.TH JAVAP 1
+.SH NAME
+javap \- disassemble class files
+.SH SYNOPSIS
+.B javap
+.RB [ \-clpsv ]
+.IR classfile ...
+.SH DESCRIPTION
+.B javap
+disassembles each classfile sequentially.
+.B javap
+prints information about non-private
+(package, protected, and public)
+fields and methods of the classes on each class file.
+.PP
+The options are as follows:
+.TP
+.B \-c
+Print disassembled code for each of the methods in the class.
+.TP
+.B \-l
+Print line and local variable tables for each of the methods in the class.
+.TP
+.B \-p
+Include private fields and methods.
+.TP
+.B \-s
+Print internal type signatures for each of the fields and methods in the class.
+.TP
+.B \-v
+Verbose mode.
+Print metadata about the class file.
+Print stack size, number of locals and arguments for each of the methods in the class.
+This option also enables options
+.BR \-c ,
+.BR \-l ,
+and
+.BR \-s .
+It does not enable the
+.B \-p
+option, though.
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B >0
+Error occurred.
+.SH EXAMPLES
+Compile the following
+.B ClassSample
+class:
+.IP
+.EX
+public class ClassSample {
+	public static final int num = 42;
+	private String name;
+	private double value;
+
+	public void init(String name, double value) {
+		this.name = name;
+		this.value = value;
+	}
+
+	public String getName() {
+		return this.name;
+	}
+
+	public double getValue() {
+		return this.value;
+	}
+}
+.EE
+.PP
+Running
+.B javap
+on
+.B ClassSample.class
+without any option outputs the following:
+.IP
+.EX
+Compiled from "ClassSample.java"
+public class ClassSample {
+  public static final int num;
+  public ClassSample();
+  public void init(java.lang.String, double);
+  public java.lang.String getName();
+  public double getValue();
+}
+.EE
+.PP
+Running
+.B javap
+on
+.B ClassSample.class
+with the \-p option outputs the following:
+.IP
+.EX
+Compiled from "ClassSample.java"
+public class ClassSample {
+  public static final int num;
+  private java.lang.String name;
+  private double value;
+  public ClassSample();
+  public void init(java.lang.String, double);
+  public java.lang.String getName();
+  public double getValue();
+}
+.EE
+.PP
+Running
+.B javap
+on
+.B ClassSample.class
+with the \-v option outputs the following:
+.IP
+.EX
+Compiled from "HelloWorld.java"
+public class HelloWorld
+  minor version: 0
+  major version: 55
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this class: #4                          // HelloWorld
+  super class: #5                         // java.lang.Object
+  interfaces: 0, fields: 3, methods: 4, attributes: 1
+Constant pool:
+    #1 = Methodref          #5.#26
+    #2 = Fieldref           #4.#27
+    #3 = Fieldref           #4.#28
+    #4 = Class              #29           // HelloWorld
+    #5 = Class              #30           // java/lang/Object
+    #6 = Utf8               num
+    #7 = Utf8               I
+    #8 = Utf8               ConstantValue
+    #9 = Integer            42
+   #10 = Utf8               name
+   #11 = Utf8               Ljava/lang/String;
+   #12 = Utf8               value
+   #13 = Utf8               D
+   #14 = Utf8               <init>
+   #15 = Utf8               ()V
+   #16 = Utf8               Code
+   #17 = Utf8               LineNumberTable
+   #18 = Utf8               init
+   #19 = Utf8               (Ljava/lang/String;D)V
+   #20 = Utf8               getName
+   #21 = Utf8               ()Ljava/lang/String;
+   #22 = Utf8               getValue
+   #23 = Utf8               ()D
+   #24 = Utf8               SourceFile
+   #25 = Utf8               HelloWorld.java
+   #26 = NameAndType        #14:#15
+   #27 = NameAndType        #10:#11
+   #28 = NameAndType        #12:#13
+   #29 = Utf8               HelloWorld
+   #30 = Utf8               java/lang/Object
+{
+  public static final int num;
+    descriptor: I
+    flags: (0x0019) ACC_PUBLIC, ACC_STATIC, ACC_FINAL
+    ConstantValue: int 42
+
+  public HelloWorld();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         0: aload_0
+         1: invokespecial
+         4: return
+      LineNumberTable:
+        line 1: 0
+
+  public void init(java.lang.String, double);
+    descriptor: (Ljava/lang/String;D)V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=3, locals=4, args_size=3
+         0: aload_0
+         1: aload_1
+         2: putfield
+         5: aload_0
+         6: dload_2
+         7: putfield
+        10: return
+      LineNumberTable:
+        line 7: 0
+        line 8: 5
+        line 9: 10
+
+  public java.lang.String getName();
+    descriptor: ()Ljava/lang/String;
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=1, locals=1, args_size=1
+         0: aload_0
+         1: getfield
+         4: areturn
+      LineNumberTable:
+        line 12: 0
+
+  public double getValue();
+    descriptor: ()D
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=2, locals=1, args_size=1
+         0: aload_0
+         1: getfield
+         4: dreturn
+      LineNumberTable:
+        line 16: 0
+}
+.EE
+.SH SEE ALSO
+.IR java (1),
+.IR javac (1)
+.PP
+Tim Lindholm, Frank Yellin, Gilad Bracha, Alex Buckley,
+.I The Java® Virtual Machine Specification: Java SE 8Edition,
+Addison-Wesley,
+2014.
+ISBN 978-0-13-390590-8.

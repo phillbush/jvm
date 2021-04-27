@@ -1,0 +1,65 @@
+.TH JAVA 1
+.SH NAME
+java \- launch a java application
+.SH SYNOPSIS
+.B java
+.RB [ \-cp
+.IR pathlist ]
+.I  classname
+.RI [ args ...]
+.SH DESCRIPTION
+.B java
+starts a Java application.
+It does this by starting the Java Runtime Environment,
+loading the specified class, and calling that class's
+.B main()
+method.
+The method must be declared
+.I public
+and
+.IR static ,
+it must not return any value, and it must accept a
+.B String
+array as a parameter.
+The method declaration has the following form:
+.IP
+.EX
+public static void main(String[] args);
+.EE
+.PP
+The JRE searches for the startup class (and other classes used by the application)
+in the class path.
+The class path is, by default, the current working directory.
+The class path can be specified by the environment variable
+.B CLASSPATH ,
+or by the the command line option
+.B -cp
+(the command line option overrides the environment variable).
+.PP
+The options are as follows:
+.TP
+.BI "\-cp " pathlist
+Specify a colon-delimited list of directories as the class path.
+.SH ENVIRONMENT
+The following environment variables affect the execution of
+.B java
+.TP
+.B CLASSPATH
+Colon-delimited list of directories as the class path.
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B >0
+Error occurred.
+.EE
+.SH SEE ALSO
+.IR javac (1),
+.IR javap (1)
+.PP
+Tim Lindholm, Frank Yellin, Gilad Bracha, Alex Buckley,
+.I The Java® Virtual Machine Specification: Java SE 8Edition,
+Addison-Wesley,
+2014.
+ISBN 978-0-13-390590-8.
