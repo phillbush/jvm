@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "class.h"
 #include "memory.h"
+#include "util.h"
 
 static Frame *framestack = NULL;
 static Heap *heap = NULL;
@@ -74,6 +75,8 @@ Value
 frame_stackpop(Frame *frame)
 {
 	// TODO: handle error when --frame->nstack == 0
+	if (frame->nstack == 0)
+		errx(EXIT_FAILURE, "ASDA");
 	return frame->stack[--frame->nstack];
 }
 

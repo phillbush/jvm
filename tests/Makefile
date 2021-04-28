@@ -1,5 +1,6 @@
 CLASS = HelloWorld.class \
         Double.class \
+        Echo.class \
         Int.class \
         Multi.class \
         TableSwitch.class \

@@ -511,8 +511,8 @@ readcode(FILE *fp, ClassFile *class, U4 count)
 		code[i] = readu(fp, 1);
 		if (code[i] >= CodeLast)
 			goto error;
-		switch (class_getnoperands(code[i])) {
-		case OP_WIDE:
+		switch (code[i]) {
+		case WIDE:
 			code[++i] = readu(fp, 1);
 			switch (code[i]) {
 			case IINC:
@@ -538,7 +538,7 @@ readcode(FILE *fp, ClassFile *class, U4 count)
 				break;
 			}
 			break;
-		case OP_LOOKUPSWITCH:
+		case LOOKUPSWITCH:
 			while ((3 - (i % 4)) > 0)
 				code[++i] = readu(fp, 1);
 			for (j = 0; j < 8; j++)
@@ -549,7 +549,7 @@ readcode(FILE *fp, ClassFile *class, U4 count)
 			for (j = 8 * npairs; j > 0; j--)
 				code[++i] = readu(fp, 1);
 			break;
-		case OP_TABLESWITCH:
+		case TABLESWITCH:
 			base = i;
 			while ((3 - (i % 4)) > 0)
 				code[++i] = readu(fp, 1);
@@ -573,48 +573,44 @@ readcode(FILE *fp, ClassFile *class, U4 count)
 				}
 			}
 			break;
+		case LDC:
+			code[++i] = readu(fp, 1);
+			checkindex(class->constant_pool, class->constant_pool_count, CONSTANT_U1, code[i]);
+			break;
+		case LDC_W:
+			code[++i] = readu(fp, 1);
+			code[++i] = readu(fp, 1);
+			checkindex(class->constant_pool, class->constant_pool_count, CONSTANT_U1, code[i - 1] << 8 | code[i]);
+			break;
+		case LDC2_W:
+			code[++i] = readu(fp, 1);
+			code[++i] = readu(fp, 1);
+			checkindex(class->constant_pool, class->constant_pool_count, CONSTANT_U2, code[i - 1] << 8 | code[i]);
+			break;
+		case GETSTATIC: case PUTSTATIC: case GETFIELD: case PUTFIELD:
+			code[++i] = readu(fp, 1);
+			code[++i] = readu(fp, 1);
+			checkindex(class->constant_pool, class->constant_pool_count, CONSTANT_Fieldref, code[i - 1] << 8 | code[i]);
+			break;
+		case INVOKESTATIC:
+			code[++i] = readu(fp, 1);
+			code[++i] = readu(fp, 1);
+			u = code[i - 1] << 8 | code[i];
+			checkindex(class->constant_pool, class->constant_pool_count, CONSTANT_Methodref, u);
+			checkmethod(class, u);
+			break;
+		case MULTIANEWARRAY:
+			code[++i] = readu(fp, 1);
+			code[++i] = readu(fp, 1);
+			u = code[i - 1] << 8 | code[i];
+			checkindex(class->constant_pool, class->constant_pool_count, CONSTANT_Class, u);
+			code[++i] = readu(fp, 1);
+			if (code[i] < 1)
+				goto error;
+			break;
 		default:
-			switch (code[i]) {
-			case LDC:
+			for (j = class_getnoperands(code[i]); j > 0; j--)
 				code[++i] = readu(fp, 1);
-				checkindex(class->constant_pool, class->constant_pool_count, CONSTANT_U1, code[i]);
-				break;
-			case LDC_W:
-				code[++i] = readu(fp, 1);
-				code[++i] = readu(fp, 1);
-				checkindex(class->constant_pool, class->constant_pool_count, CONSTANT_U1, code[i - 1] << 8 | code[i]);
-				break;
-			case LDC2_W:
-				code[++i] = readu(fp, 1);
-				code[++i] = readu(fp, 1);
-				checkindex(class->constant_pool, class->constant_pool_count, CONSTANT_U2, code[i - 1] << 8 | code[i]);
-				break;
-			case GETSTATIC: case PUTSTATIC: case GETFIELD: case PUTFIELD:
-				code[++i] = readu(fp, 1);
-				code[++i] = readu(fp, 1);
-				checkindex(class->constant_pool, class->constant_pool_count, CONSTANT_Fieldref, code[i - 1] << 8 | code[i]);
-				break;
-			case INVOKESTATIC:
-				code[++i] = readu(fp, 1);
-				code[++i] = readu(fp, 1);
-				u = code[i - 1] << 8 | code[i];
-				checkindex(class->constant_pool, class->constant_pool_count, CONSTANT_Methodref, u);
-				checkmethod(class, u);
-				break;
-			case MULTIANEWARRAY:
-				code[++i] = readu(fp, 1);
-				code[++i] = readu(fp, 1);
-				u = code[i - 1] << 8 | code[i];
-				checkindex(class->constant_pool, class->constant_pool_count, CONSTANT_Class, u);
-				code[++i] = readu(fp, 1);
-				if (code[i] < 1)
-					goto error;
-				break;
-			default:
-				for (j = class_getnoperands(code[i]); j > 0; j--)
-					code[++i] = readu(fp, 1);
-				break;
-			}
 			break;
 		}
 	}

@@ -6,6 +6,11 @@
 #include "class.h"
 #include "file.h"
 
+#define CPINDEX         26      /* columns before index in the constant_pool section */
+#define CPCOMMENT       42      /* columns before comments in the constant_pool section */
+#define CODEINDEX       25      /* columns before index in the code section */
+#define CODECOMMENT     45      /* columns before comments in the code section */
+
 /* names */
 static char *cptags[] = {
 	[CONSTANT_Untagged]           = "",
@@ -244,6 +249,13 @@ usage(void)
 	exit(EXIT_FAILURE);
 }
 
+/* get number of columns to align index or comment text */
+static int
+getcol(int max, int n)
+{
+	return (n > 0 && n < max) ? max - n - 1 : 1;
+}
+
 /* print access flags */
 static void
 printflags(U2 flags, int type)
@@ -305,12 +317,12 @@ printcp(ClassFile *class)
 		do {
 			d++;
 		} while (n /= 10);
-		d = (d < 5) ? 5 - d : 0;
+		d = (d < 4) ? 4 - d : 0;
 		n = d;
 		while (n--)
 			putchar(' ');
 		n = printf("#%d = %s", i, cptags[cp[i].tag]);
-		n = (n > 0) ? 27 - (n + d) : 0;
+		n = (n > 0) ? CPINDEX - (n + d) : 0;
 		do {
 			putchar(' ');
 		} while (n-- > 0);
@@ -334,33 +346,29 @@ printcp(ClassFile *class)
 			break;
 		case CONSTANT_Class:
 			n = printf("#%u", cp[i].info.class_info.name_index);
-			n = (n > 0 && n < 14) ? 14 - n : 0;
-			while (n--)
-				putchar(' ');
+			n = getcol(16, n);
+			printf("%*c", n, ' ');
 			printf("// %s", class_getutf8(class, cp[i].info.class_info.name_index));
 			break;
 		case CONSTANT_String:
 			n = printf("#%u", cp[i].info.string_info.string_index);
-			n = (n > 0 && n < 14) ? 14 - n : 0;
-			while (n--)
-				putchar(' ');
+			n = getcol(16, n);
+			printf("%*c", n, ' ');
 			printf("// %s", class_getutf8(class, cp[i].info.string_info.string_index));
 			break;
 		case CONSTANT_Fieldref:
 			n = printf("#%u.#%u", cp[i].info.fieldref_info.class_index,
 			           cp[i].info.fieldref_info.name_and_type_index);
-			n = (n > 0 && n < 14) ? 14 - n : 0;
-			while (n--)
-				putchar(' ');
+			n = getcol(16, n);
+			printf("%*c", n, ' ');
 			class_getnameandtype(class, cp[i].info.fieldref_info.name_and_type_index, &name, &type);
 			printf("// %s.%s:%s", class_getclassname(class, cp[i].info.fieldref_info.class_index), name, type);
 			break;
 		case CONSTANT_Methodref:
 			n = printf("#%u.#%u", cp[i].info.methodref_info.class_index,
 			           cp[i].info.methodref_info.name_and_type_index);
-			n = (n > 0 && n < 14) ? 14 - n : 0;
-			while (n--)
-				putchar(' ');
+			n = getcol(16, n);
+			printf("%*c", n, ' ');
 			class_getnameandtype(class, cp[i].info.methodref_info.name_and_type_index, &name, &type);
 			printf("// %s.%s:%s", class_getclassname(class, cp[i].info.methodref_info.class_index), name, type);
 			break;
@@ -371,9 +379,8 @@ printcp(ClassFile *class)
 		case CONSTANT_NameAndType:
 			n = printf("#%u:#%u", cp[i].info.nameandtype_info.name_index,
 			           cp[i].info.nameandtype_info.descriptor_index);
-			n = (n > 0 && n < 14) ? 14 - n : 0;
-			while (n--)
-				putchar(' ');
+			n = getcol(16, n);
+			printf("%*c", n, ' ');
 			class_getnameandtype(class, i, &name, &type);
 			printf("// %s:%s", name, type);
 			break;
@@ -421,18 +428,14 @@ printmeta(ClassFile *class)
 	printflags(class->access_flags, TYPE_CLASS);
 
 	n = printf("  this class: #%u", class->this_class);
-	n = (n > 0 && n < 42) ? 42 - n : 0;
-	while (n--)
-		putchar(' ');
-	printf("// ");
+	n = getcol(CPCOMMENT, n);
+	printf("%*c// ", n, ' ');
 	printclass(class, class->this_class);
 	printf("\n");
 
 	n = printf("  super class: #%u", class->super_class);
-	n = (n > 0 && n < 42) ? 42 - n : 0;
-	while (n--)
-		putchar(' ');
-	printf("// ");
+	n = getcol(CPCOMMENT, n);
+	printf("%*c// ", n, ' ');
 	printclass(class, class->super_class);
 	printf("\n");
 
@@ -688,15 +691,20 @@ printlocalvars(ClassFile *class, LocalVariableTable_attribute *lvattr)
 
 /* print code of method */
 static void
-printcode(Code_attribute *codeattr, U2 nargs)
+printcode(ClassFile *class, Code_attribute *codeattr, U2 nargs)
 {
-	int32_t j, npairs, def, high, low, n;
+	int32_t j, npairs, def, high, low;
+	CP *cp;
 	U1 *code;
 	U1 opcode;
+	U2 cpi;         /* constant pool index */
 	U4 count;
 	U4 a, b, c, d;
 	U4 i, base;
+	int n, m;       /* number of printed column, to format output */
+	char *name, *type;
 
+	cp = class->constant_pool;
 	code = codeattr->code;
 	count = codeattr->code_length;
 	printf("    Code:\n");
@@ -708,9 +716,9 @@ printcode(Code_attribute *codeattr, U2 nargs)
 		opcode = code[i];
 		if (verbose)
 			printf("  ");
-		printf("%8u: %s", i, instrnames[opcode]);
-		switch (class_getnoperands(code[i])) {
-		case OP_WIDE:
+		n = printf("%8u: %s", i, instrnames[opcode]);
+		switch (code[i]) {
+		case WIDE:
 			switch (code[i]) {
 			case ILOAD:
 			case FLOAD:
@@ -730,7 +738,7 @@ printcode(Code_attribute *codeattr, U2 nargs)
 				break;
 			}
 			break;
-		case OP_LOOKUPSWITCH:
+		case LOOKUPSWITCH:
 			i++;
 			while (i % 4)
 				i++;
@@ -743,7 +751,7 @@ printcode(Code_attribute *codeattr, U2 nargs)
 			npairs = (a << 24) | (b << 16) | (c << 8) | d;
 			i += 8 * npairs;
 			break;
-		case OP_TABLESWITCH:
+		case TABLESWITCH:
 			base = i++;
 			while (i % 4)
 				i++;
@@ -768,12 +776,35 @@ printcode(Code_attribute *codeattr, U2 nargs)
 				b = code[i++];
 				c = code[i++];
 				d = code[i++];
-				n = (a << 24) | (b << 16) | (c << 8) | d;
-				printf("%24d: %d\n", j, n + base);
+				printf("%24d: %d\n", j, ((int32_t)(a << 24) | (b << 16) | (c << 8) | d) + base);
 			}
 			i--;
 			printf("                 default: %d\n", def + base);
 			printf("            }");
+			break;
+		case GETSTATIC:
+			cpi = code[++i] << 8;
+			cpi |= code[++i];
+			m = getcol(CODEINDEX, n);
+			n += printf("%*c#%u", m, ' ', cpi);
+			m = getcol(CODECOMMENT, n);
+			class_getnameandtype(class, cp[cpi].info.fieldref_info.name_and_type_index, &name, &type);
+			printf("%*c// Field %s.%s:%s", m, ' ',
+			       class_getclassname(class, cp[cpi].info.fieldref_info.class_index),
+			       name,
+			       type);
+			break;
+		case INVOKEVIRTUAL:
+			cpi = code[++i] << 8;
+			cpi |= code[++i];
+			m = getcol(CODEINDEX, n);
+			n += printf("%*c#%u", m, ' ', cpi);
+			m = getcol(CODECOMMENT, n);
+			class_getnameandtype(class, cp[cpi].info.methodref_info.name_and_type_index, &name, &type);
+			printf("%*c// Method %s.%s:%s", m, ' ',
+			       class_getclassname(class, cp[cpi].info.methodref_info.class_index),
+			       name,
+			       type);
 			break;
 		default:
 			for (j = 0; i < count && j < class_getnoperands(opcode); j++)
@@ -840,7 +871,7 @@ printmethod(ClassFile *class, U2 count)
 		lnattr = class_getattr(cattr->info.code.attributes, cattr->info.code.attributes_count, LineNumberTable);
 		lvattr = class_getattr(cattr->info.code.attributes, cattr->info.code.attributes_count, LocalVariableTable);
 		if (cflag) {
-			printcode(&cattr->info.code, nargs);
+			printcode(class, &cattr->info.code, nargs);
 		}
 		if (lflag && lnattr != NULL) {
 			printlinenumbers(&lnattr->info.linenumbertable);

@@ -45,6 +45,35 @@ natprintln(Frame *frame, char *type)
 	}
 }
 
+void
+natprint(Frame *frame, char *type)
+{
+	Value vfp, v;
+
+	v = frame_stackpop(frame);
+	if (strcmp(type, "()V") != 0) {
+		vfp = frame_stackpop(frame);
+		if (strcmp(type, "(Ljava/lang/String;)V") == 0)
+			fprintf((FILE *)vfp.v->obj, "%s", (char *)v.v->obj);
+		else if (strcmp(type, "(B)V") == 0)
+			fprintf((FILE *)vfp.v->obj, "%d", v.i);
+		else if (strcmp(type, "(C)V") == 0)
+			fprintf((FILE *)vfp.v->obj, "%c", v.i);
+		else if (strcmp(type, "(D)V") == 0)
+			fprintf((FILE *)vfp.v->obj, "%.16g", v.d);
+		else if (strcmp(type, "(F)V") == 0)
+			fprintf((FILE *)vfp.v->obj, "%.16g", v.f);
+		else if (strcmp(type, "(I)V") == 0)
+			fprintf((FILE *)vfp.v->obj, "%d", v.i);
+		else if (strcmp(type, "(J)V") == 0)
+			fprintf((FILE *)vfp.v->obj, "%lld", v.l);
+		else if (strcmp(type, "(S)V") == 0)
+			fprintf((FILE *)vfp.v->obj, "%d", v.i);
+		else if (strcmp(type, "(Z)V") == 0)
+			fprintf((FILE *)vfp.v->obj, "%d", v.i);
+	}
+}
+
 JavaClass
 native_javaclass(char *classname)
 {
@@ -86,6 +115,9 @@ native_javamethod(Frame *frame, JavaClass jclass, char *name, char *type)
 	case IO_PRINTSTREAM:
 		if (strcmp(name, "println") == 0) {
 			natprintln(frame, type);
+			return 0;
+		} else if (strcmp(name, "print") == 0) {
+			natprint(frame, type);
 			return 0;
 		}
 	}
