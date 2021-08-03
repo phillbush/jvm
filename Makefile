@@ -1,5 +1,21 @@
-JAVAOBJS  = java.o  util.o class.o file.o memory.o native.o
-JAVAPOBJS = javap.o util.o class.o file.o
+JAVAOBJS  := java.o  util.o class.o file.o memory.o native.o
+JAVAPOBJS := javap.o util.o class.o file.o
+OBJS      := java.o  util.o class.o file.o memory.o native.o
+SRCS      := ${OBJS:.o=.c}
+
+JAVAP := javap
+JAVA  := java
+
+CLASSES := tests/HelloWorld.class \
+           tests/Double.class \
+           tests/Echo.class \
+           tests/Int.class \
+           tests/Multi.class \
+           tests/TableSwitch.class \
+           tests/Vector1.class \
+           tests/Vector2.class
+TESTP := ${CLASSES:.class=.p}
+TESTJ := ${CLASSES:.class=.j}
 
 LIBS = -lm
 INCS =
@@ -8,13 +24,24 @@ CFLAGS = -g -O0 -std=c99 -Wall -Wextra ${INCS} ${CPPFLAGS}
 LDFLAGS = ${LIBS}
 LINT = splint
 LINTFLAGS = -nullret -predboolint
+JAVAPFLAGS = -vp
 
-all: java javap
+# .p and .j are dummy suffixes we use for testing
+.SUFFIXES: .p .j .java .class
 
-java: ${JAVAOBJS}
+# main targets
+all: ${JAVA} ${JAVAP}
+
+testp: ${TESTP}
+testj: ${TESTJ}
+
+lint:
+	-${LINT} ${CPPFLAGS} ${LINTFLAGS} ${SRCS}
+
+${JAVA}: ${JAVAOBJS}
 	${CC} -o $@ ${JAVAOBJS} ${LDFLAGS}
 
-javap: ${JAVAPOBJS}
+${JAVAP}: ${JAVAPOBJS}
 	${CC} -o $@ ${JAVAPOBJS} ${LDFLAGS}
 
 java.o:   class.h util.h file.h memory.h native.h
@@ -24,13 +51,26 @@ native.o: class.h memory.h native.h
 memory.o: class.h memory.h
 class.o:  class.h util.h
 
-lint:
-	-${LINT} ${CPPFLAGS} ${LINTFLAGS} javap.c util.c class.c file.c
-
 .c.o:
 	${CC} ${CFLAGS} -c $<
 
-clean:
-	-rm java javap *.o
+# test the disassembler (javap) on the test classes
+.class.p: ${JAVAP}
+	@echo
+	@echo "========== Disassembling $<"
+	@./${JAVAP} ${JAVAPFLAGS} $<
 
-.PHONY: all clean lint
+# test the jvm (java) on the test classes
+.class.j: ${JAVA}
+	@echo
+	@echo "========== Running $<"
+	@./${JAVA} -cp "$$(echo $< | sed 's,/[^/]*,,')" ${JAVAFLAGS} "$$(echo $< | sed 's,.*/,,; s,.class,,')"
+
+# compile the test classes
+.java.class:
+	javac $<
+
+clean:
+	-rm ${JAVA} ${JAVAP} ${OBJS} ${CLASSES}
+
+.PHONY: all clean lint testp ${TESTP} ${TESTJ}

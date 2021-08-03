@@ -21,6 +21,39 @@ The following tools are implemented:
 • tests/*:      collection of simple .java files for testing the jvm
 
 
+§ Running
+
+To build the jvm, run the following command.  This will create the
+executable file ./java for the jvm.
+
+	make java
+
+To build the disassembler, run the following command.  This will create
+the executable file ./javap for the disassembler.
+
+	make javap
+
+To test the disassembler, run make on one of the test files with its
+suffix replaced with "p".  For example, to test the disassembler on
+the test class tests/HelloWorld.class, run the following command.
+
+	make tests/HelloWorld.p
+
+To test the disassembler on all test classes, run the following command.
+
+	make testp
+
+To test the jvm, run make on one of the test files with its suffix
+replaced with "j".  For example, to test the jvm on the test class
+tests/HelloWorld.class, run the following command.
+
+	make tests/HelloWorld.j
+
+To test the jvm on all test classes, run the following command.
+
+	make testj
+
+
 § See Also
 
 The Java® Virtual Machine Specification: Java SE 8Edition,
