@@ -417,9 +417,9 @@ typedef struct Code_attribute {
 	U4                      code_length;
 	U1                     *code;
 	U2                      exception_table_length;
-	struct Exception       *exception_table;
+	struct Exception      **exception_table;
 	U2                      attributes_count;
-	struct Attribute       *attributes;
+	struct Attribute      **attributes;
 } Code_attribute;
 
 typedef struct Exceptions_attribute {
@@ -429,7 +429,7 @@ typedef struct Exceptions_attribute {
 
 typedef struct InnerClasses_attribute {
 	U2                      number_of_classes;
-	struct InnerClass      *classes;
+	struct InnerClass     **classes;
 } InnerClasses_attribute;
 
 typedef struct SourceFile_attribute {
@@ -438,12 +438,12 @@ typedef struct SourceFile_attribute {
 
 typedef struct LineNumberTable_attribute {
 	U2                      line_number_table_length;
-	struct LineNumber      *line_number_table;
+	struct LineNumber     **line_number_table;
 } LineNumberTable_attribute;
 
 typedef struct LocalVariableTable_attribute {
 	U2                      local_variable_table_length;
-	struct LocalVariable   *local_variable_table;
+	struct LocalVariable  **local_variable_table;
 } LocalVariableTable_attribute;
 
 typedef struct CP {
@@ -484,7 +484,7 @@ typedef struct Field {
 	U2                      name_index;
 	U2                      descriptor_index;
 	U2                      attributes_count;
-	struct Attribute       *attributes;
+	struct Attribute      **attributes;
 } Field;
 
 typedef struct Method {
@@ -492,7 +492,7 @@ typedef struct Method {
 	U2                      name_index;
 	U2                      descriptor_index;
 	U2                      attributes_count;
-	struct Attribute       *attributes;
+	struct Attribute      **attributes;
 } Method;
 
 typedef struct Exception {
@@ -523,27 +523,27 @@ typedef struct LocalVariable {
 } LocalVariable;
 
 typedef struct ClassFile {
-	int               init;
-	struct ClassFile *next, *super;
-	U2                minor_version;
-	U2                major_version;
-	U2                constant_pool_count;
-	struct CP        *constant_pool;
-	U2                access_flags;
-	U2                this_class;
-	U2                super_class;
-	U2                interfaces_count;
-	U2               *interfaces;
-	U2                fields_count;
-	struct Field     *fields;
-	U2                methods_count;
-	struct Method    *methods;
-	U2                attributes_count;
-	struct Attribute *attributes;
+	int                init;
+	struct ClassFile  *next, *super;
+	U2                 minor_version;
+	U2                 major_version;
+	U2                 constant_pool_count;
+	struct CP        **constant_pool;
+	U2                 access_flags;
+	U2                 this_class;
+	U2                 super_class;
+	U2                 interfaces_count;
+	U2                *interfaces;
+	U2                 fields_count;
+	struct Field     **fields;
+	U2                 methods_count;
+	struct Method    **methods;
+	U2                 attributes_count;
+	struct Attribute **attributes;
 } ClassFile;
 
 int class_getnoperands(U1 instruction);
-Attribute *class_getattr(Attribute *attrs, U2 count, AttributeTag tag);
+Attribute *class_getattr(Attribute **attrs, U2 count, AttributeTag tag);
 char *class_getutf8(ClassFile *class, U2 index);
 char *class_getclassname(ClassFile *class, U2 index);
 char *class_getstring(ClassFile *class, U2 index);

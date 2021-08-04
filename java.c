@@ -174,7 +174,7 @@ resolveconstant(ClassFile *class, U2 index)
 	char *s;
 
 	v.i = 0;
-	switch (class->constant_pool[index].tag) {
+	switch (class->constant_pool[index]->tag) {
 	case CONSTANT_Integer:
 		v.i = class_getinteger(class, index);
 		break;
@@ -667,7 +667,7 @@ opgetstatic(Frame *frame)
 
 	i = frame->code->code[frame->pc++] << 8;
 	i |= frame->code->code[frame->pc++];
-	fieldref = &frame->class->constant_pool[i].info.fieldref_info;
+	fieldref = &frame->class->constant_pool[i]->info.fieldref_info;
 	v = resolvefield(frame->class, fieldref);
 	frame_stackpush(frame, v);
 	return NO_RETURN;
@@ -683,7 +683,7 @@ opgoto(Frame *frame)
 	base = frame->pc - 1;
 	i = frame->code->code[frame->pc++] << 8;
 	i |= frame->code->code[frame->pc++];
-	memcpy(&off, &i, sizeof off);
+	memcpy(&off, &i, sizeof(off));
 	frame->pc = base + off;
 	return NO_RETURN;
 }
@@ -1073,7 +1073,7 @@ opinvokestatic(Frame *frame)
 	//       or the class or interface initialization method.
 	i = frame->code->code[frame->pc++] << 8;
 	i |= frame->code->code[frame->pc++];
-	methodref = &frame->class->constant_pool[i].info.methodref_info;
+	methodref = &frame->class->constant_pool[i]->info.methodref_info;
 	classname = class_getclassname(frame->class, methodref->class_index);
 	class_getnameandtype(frame->class, methodref->name_and_type_index, &name, &type);
 	if ((jclass = native_javaclass(classname)) != 0) {
@@ -1101,7 +1101,7 @@ opinvokevirtual(Frame *frame)
 
 	i = frame->code->code[frame->pc++] << 8;
 	i |= frame->code->code[frame->pc++];
-	methodref = &frame->class->constant_pool[i].info.methodref_info;
+	methodref = &frame->class->constant_pool[i]->info.methodref_info;
 	classname = class_getclassname(frame->class, methodref->class_index);
 	class_getnameandtype(frame->class, methodref->name_and_type_index, &name, &type);
 	if ((jclass = native_javaclass(classname)) != 0) {

@@ -32,6 +32,8 @@ JAVAPFLAGS = -vp
 # main targets
 all: ${JAVA} ${JAVAP}
 
+classes: ${CLASSES}
+
 testp: ${TESTP}
 testj: ${TESTJ}
 
@@ -71,6 +73,6 @@ class.o:  class.h util.h
 	javac $<
 
 clean:
-	-rm ${JAVA} ${JAVAP} ${OBJS} ${CLASSES}
+	-rm ${JAVA} ${JAVAP} ${OBJS} ${CLASSES} 2>/dev/null
 
 .PHONY: all clean lint testp ${TESTP} ${TESTJ}

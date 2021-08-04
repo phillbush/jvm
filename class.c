@@ -218,13 +218,13 @@ class_getnoperands(U1 instruction)
 
 /* get attribute with given tag in list of attributes */
 Attribute *
-class_getattr(Attribute *attrs, U2 count, AttributeTag tag)
+class_getattr(Attribute **attrs, U2 count, AttributeTag tag)
 {
 	U2 i;
 
 	for (i = 0; i < count; i++)
-		if (attrs[i].tag == tag)
-			return &attrs[i];
+		if (attrs[i]->tag == tag)
+			return attrs[i];
 	return NULL;
 }
 
@@ -232,59 +232,59 @@ class_getattr(Attribute *attrs, U2 count, AttributeTag tag)
 char *
 class_getutf8(ClassFile *class, U2 index)
 {
-	return class->constant_pool[index].info.utf8_info.bytes;
+	return class->constant_pool[index]->info.utf8_info.bytes;
 }
 
 /* get string from constant pool */
 char *
 class_getclassname(ClassFile *class, U2 index)
 {
-	return class_getutf8(class, class->constant_pool[index].info.class_info.name_index);
+	return class_getutf8(class, class->constant_pool[index]->info.class_info.name_index);
 }
 
 /* get string from string reference */
 char *
 class_getstring(ClassFile *class, U2 index)
 {
-	return class_getutf8(class, class->constant_pool[index].info.string_info.string_index);
+	return class_getutf8(class, class->constant_pool[index]->info.string_info.string_index);
 }
 
 /* get int32_t from integer reference */
 int32_t
 class_getinteger(ClassFile *class, U2 index)
 {
-	return getint(class->constant_pool[index].info.integer_info.bytes);
+	return getint(class->constant_pool[index]->info.integer_info.bytes);
 }
 
 /* get float from float reference */
 float
 class_getfloat(ClassFile *class, U2 index)
 {
-	return getfloat(class->constant_pool[index].info.integer_info.bytes);
+	return getfloat(class->constant_pool[index]->info.integer_info.bytes);
 }
 
 /* get int64_t from long reference */
 int64_t
 class_getlong(ClassFile *class, U2 index)
 {
-	return getlong(class->constant_pool[index].info.long_info.high_bytes,
-	               class->constant_pool[index].info.long_info.low_bytes);
+	return getlong(class->constant_pool[index]->info.long_info.high_bytes,
+	               class->constant_pool[index]->info.long_info.low_bytes);
 }
 
 /* get double from double reference */
 double
 class_getdouble(ClassFile *class, U2 index)
 {
-	return getdouble(class->constant_pool[index].info.long_info.high_bytes,
-	                 class->constant_pool[index].info.long_info.low_bytes);
+	return getdouble(class->constant_pool[index]->info.long_info.high_bytes,
+	                 class->constant_pool[index]->info.long_info.low_bytes);
 }
 
 /* get name and type of field or method */
 void
 class_getnameandtype(ClassFile *class, U2 index, char **name, char **type)
 {
-	*name = class_getutf8(class, class->constant_pool[index].info.nameandtype_info.name_index);
-	*type = class_getutf8(class, class->constant_pool[index].info.nameandtype_info.descriptor_index);
+	*name = class_getutf8(class, class->constant_pool[index]->info.nameandtype_info.name_index);
+	*type = class_getutf8(class, class->constant_pool[index]->info.nameandtype_info.descriptor_index);
 }
 
 /* get method matching name and descriptor from class */
@@ -294,9 +294,9 @@ class_getmethod(ClassFile *class, char *name, char *descr)
 	U2 i;
 
 	for (i = 0; i < class->methods_count; i++)
-		if (strcmp(name, class_getutf8(class, class->methods[i].name_index)) == 0 &&
-		    strcmp(descr, class_getutf8(class, class->methods[i].descriptor_index)) == 0)
-			return &class->methods[i];
+		if (strcmp(name, class_getutf8(class, class->methods[i]->name_index)) == 0 &&
+		    strcmp(descr, class_getutf8(class, class->methods[i]->descriptor_index)) == 0)
+			return class->methods[i];
 	return NULL;
 }
 
@@ -307,9 +307,9 @@ class_getfield(ClassFile *class, char *name, char *descr)
 	U2 i;
 
 	for (i = 0; i < class->fields_count; i++)
-		if (strcmp(name, class_getutf8(class, class->fields[i].name_index)) == 0 &&
-		    strcmp(descr, class_getutf8(class, class->fields[i].descriptor_index)) == 0)
-			return &class->fields[i];
+		if (strcmp(name, class_getutf8(class, class->fields[i]->name_index)) == 0 &&
+		    strcmp(descr, class_getutf8(class, class->fields[i]->descriptor_index)) == 0)
+			return class->fields[i];
 	return NULL;
 }
 

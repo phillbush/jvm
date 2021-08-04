@@ -7,7 +7,7 @@
 #include "file.h"
 
 #define CPINDEX         26      /* columns before index in the constant_pool section */
-#define CPCOMMENT       42      /* columns before comments in the constant_pool section */
+#define CPCOMMENT       43      /* columns before comments in the constant_pool section */
 #define CODEINDEX       25      /* columns before index in the code section */
 #define CODECOMMENT     45      /* columns before comments in the code section */
 
@@ -256,6 +256,15 @@ getcol(int max, int n)
 	return (n > 0 && n < max) ? max - n - 1 : 1;
 }
 
+/* quote method name if it is <init> */
+static char *
+quotename(char *s)
+{
+	if (strcmp(s, "<init>") == 0)
+		return "\"<init>\"";
+	return s;
+}
+
 /* print access flags */
 static void
 printflags(U2 flags, int type)
@@ -303,7 +312,7 @@ printflags(U2 flags, int type)
 static void
 printcp(ClassFile *class)
 {
-	CP *cp;
+	CP **cp;
 	U2 count, i;
 	char *name, *type;
 	int d, n;
@@ -321,79 +330,81 @@ printcp(ClassFile *class)
 		n = d;
 		while (n--)
 			putchar(' ');
-		n = printf("#%d = %s", i, cptags[cp[i].tag]);
+		n = printf("#%d = %s", i, cptags[cp[i]->tag]);
 		n = (n > 0) ? CPINDEX - (n + d) : 0;
 		do {
 			putchar(' ');
 		} while (n-- > 0);
-		switch (cp[i].tag) {
+		switch (cp[i]->tag) {
 		case CONSTANT_Utf8:
-			printf("%s", cp[i].info.utf8_info.bytes);
+			printf("%s", cp[i]->info.utf8_info.bytes);
 			break;
 		case CONSTANT_Integer:
-			printf("%ld", (long)getint(cp[i].info.integer_info.bytes));
+			printf("%ld", (long)getint(cp[i]->info.integer_info.bytes));
 			break;
 		case CONSTANT_Float:
-			printf("%gd", getfloat(cp[i].info.integer_info.bytes));
+			printf("%gd", getfloat(cp[i]->info.integer_info.bytes));
 			break;
 		case CONSTANT_Long:
-			printf("%lld", getlong(cp[i].info.long_info.high_bytes, cp[i].info.long_info.low_bytes));
+			printf("%lld", getlong(cp[i]->info.long_info.high_bytes, cp[i]->info.long_info.low_bytes));
 			i++;
 			break;
 		case CONSTANT_Double:
-			printf("%gd", getdouble(cp[i].info.long_info.high_bytes, cp[i].info.long_info.low_bytes));
+			printf("%gd", getdouble(cp[i]->info.long_info.high_bytes, cp[i]->info.long_info.low_bytes));
 			i++;
 			break;
 		case CONSTANT_Class:
-			n = printf("#%u", cp[i].info.class_info.name_index);
+			n = printf("#%u", cp[i]->info.class_info.name_index);
 			n = getcol(16, n);
 			printf("%*c", n, ' ');
-			printf("// %s", class_getutf8(class, cp[i].info.class_info.name_index));
+			printf("// %s", class_getutf8(class, cp[i]->info.class_info.name_index));
 			break;
 		case CONSTANT_String:
-			n = printf("#%u", cp[i].info.string_info.string_index);
+			n = printf("#%u", cp[i]->info.string_info.string_index);
 			n = getcol(16, n);
 			printf("%*c", n, ' ');
-			printf("// %s", class_getutf8(class, cp[i].info.string_info.string_index));
+			printf("// %s", class_getutf8(class, cp[i]->info.string_info.string_index));
 			break;
 		case CONSTANT_Fieldref:
-			n = printf("#%u.#%u", cp[i].info.fieldref_info.class_index,
-			           cp[i].info.fieldref_info.name_and_type_index);
+			n = printf("#%u.#%u", cp[i]->info.fieldref_info.class_index,
+			           cp[i]->info.fieldref_info.name_and_type_index);
 			n = getcol(16, n);
 			printf("%*c", n, ' ');
-			class_getnameandtype(class, cp[i].info.fieldref_info.name_and_type_index, &name, &type);
-			printf("// %s.%s:%s", class_getclassname(class, cp[i].info.fieldref_info.class_index), name, type);
+			class_getnameandtype(class, cp[i]->info.fieldref_info.name_and_type_index, &name, &type);
+			printf("// %s.%s:%s", class_getclassname(class, cp[i]->info.fieldref_info.class_index), name, type);
 			break;
 		case CONSTANT_Methodref:
-			n = printf("#%u.#%u", cp[i].info.methodref_info.class_index,
-			           cp[i].info.methodref_info.name_and_type_index);
+			n = printf("#%u.#%u", cp[i]->info.methodref_info.class_index,
+			           cp[i]->info.methodref_info.name_and_type_index);
 			n = getcol(16, n);
 			printf("%*c", n, ' ');
-			class_getnameandtype(class, cp[i].info.methodref_info.name_and_type_index, &name, &type);
-			printf("// %s.%s:%s", class_getclassname(class, cp[i].info.methodref_info.class_index), name, type);
+			class_getnameandtype(class, cp[i]->info.methodref_info.name_and_type_index, &name, &type);
+			name = quotename(name);
+			printf("// %s.%s:%s", class_getclassname(class, cp[i]->info.methodref_info.class_index), name, type);
 			break;
 		case CONSTANT_InterfaceMethodref:
-			printf("#%u", cp[i].info.interfacemethodref_info.class_index);
-			printf(".#%u", cp[i].info.interfacemethodref_info.name_and_type_index);
+			printf("#%u", cp[i]->info.interfacemethodref_info.class_index);
+			printf(".#%u", cp[i]->info.interfacemethodref_info.name_and_type_index);
 			break;
 		case CONSTANT_NameAndType:
-			n = printf("#%u:#%u", cp[i].info.nameandtype_info.name_index,
-			           cp[i].info.nameandtype_info.descriptor_index);
+			n = printf("#%u:#%u", cp[i]->info.nameandtype_info.name_index,
+			           cp[i]->info.nameandtype_info.descriptor_index);
 			n = getcol(16, n);
 			printf("%*c", n, ' ');
 			class_getnameandtype(class, i, &name, &type);
+			name = quotename(name);
 			printf("// %s:%s", name, type);
 			break;
 		case CONSTANT_MethodHandle:
-			printf("%u", cp[i].info.methodhandle_info.reference_kind);
-			printf(":#%u", cp[i].info.methodhandle_info.reference_index);
+			printf("%u", cp[i]->info.methodhandle_info.reference_kind);
+			printf(":#%u", cp[i]->info.methodhandle_info.reference_index);
 			break;
 		case CONSTANT_MethodType:
-			printf("#%u", cp[i].info.methodtype_info.descriptor_index);
+			printf("#%u", cp[i]->info.methodtype_info.descriptor_index);
 			break;
 		case CONSTANT_InvokeDynamic:
-			printf("#%u", cp[i].info.invokedynamic_info.bootstrap_method_attr_index);
-			printf(":#%u", cp[i].info.invokedynamic_info.name_and_type_index);
+			printf("#%u", cp[i]->info.invokedynamic_info.bootstrap_method_attr_index);
+			printf(":#%u", cp[i]->info.invokedynamic_info.name_and_type_index);
 			break;
 		}
 		putchar('\n');
@@ -427,16 +438,16 @@ printmeta(ClassFile *class)
 	printf("  ");
 	printflags(class->access_flags, TYPE_CLASS);
 
-	n = printf("  this class: #%u", class->this_class);
+	n = printf("  this_class: #%u", class->this_class);
 	n = getcol(CPCOMMENT, n);
 	printf("%*c// ", n, ' ');
-	printclass(class, class->this_class);
+	printf("%s", class_getclassname(class, class->this_class));
 	printf("\n");
 
-	n = printf("  super class: #%u", class->super_class);
+	n = printf("  super_class: #%u", class->super_class);
 	n = getcol(CPCOMMENT, n);
 	printf("%*c// ", n, ' ');
-	printclass(class, class->super_class);
+	printf("%s", class_getclassname(class, class->super_class));
 	printf("\n");
 
 	printf("  interfaces: %u, fields: %u, methods: %u, attributes: %u\n",
@@ -587,31 +598,31 @@ printconstant(ClassFile *class, Field *field)
 		return;
 	index = 0;
 	for (i = 0; i < field->attributes_count; i++) {
-		if (field->attributes[i].tag == ConstantValue) {
-			index = field->attributes[i].info.constantvalue.constantvalue_index;
+		if (field->attributes[i]->tag == ConstantValue) {
+			index = field->attributes[i]->info.constantvalue.constantvalue_index;
 			break;
 		}
 	}
 	if (index == 0)
 		return;
 	printf("    ConstantValue: ");
-	switch (class->constant_pool[index].tag) {
+	switch (class->constant_pool[index]->tag) {
 	case CONSTANT_Integer:
-		printf("int %ld", (long)getint(class->constant_pool[index].info.integer_info.bytes));
+		printf("int %ld", (long)getint(class->constant_pool[index]->info.integer_info.bytes));
 		break;
 	case CONSTANT_Long:
-		printf("long %lld", getlong(class->constant_pool[index].info.long_info.high_bytes,
-		                            class->constant_pool[index].info.long_info.low_bytes));
+		printf("long %lld", getlong(class->constant_pool[index]->info.long_info.high_bytes,
+		                            class->constant_pool[index]->info.long_info.low_bytes));
 		break;
 	case CONSTANT_Float:
-		printf("float %gd", getfloat(class->constant_pool[index].info.float_info.bytes));
+		printf("float %gd", getfloat(class->constant_pool[index]->info.float_info.bytes));
 		break;
 	case CONSTANT_Double:
-		printf("double %gd", getdouble(class->constant_pool[index].info.double_info.high_bytes,
-		                               class->constant_pool[index].info.double_info.low_bytes));
+		printf("double %gd", getdouble(class->constant_pool[index]->info.double_info.high_bytes,
+		                               class->constant_pool[index]->info.double_info.low_bytes));
 		break;
 	case CONSTANT_String:
-		printf("String %s", class_getutf8(class, class->constant_pool[index].info.string_info.string_index));
+		printf("String %s", class_getutf8(class, class->constant_pool[index]->info.string_info.string_index));
 		break;
 	}
 	putchar('\n');
@@ -623,7 +634,7 @@ printfield(ClassFile *class, U2 count)
 {
 	Field *field;
 
-	field = &class->fields[count];
+	field = class->fields[count];
 	if (!pflag && field->access_flags & ACC_PRIVATE)
 		return;
 	printf("  ");
@@ -659,14 +670,14 @@ printfield(ClassFile *class, U2 count)
 static void
 printlinenumbers(LineNumberTable_attribute *lnattr)
 {
-	LineNumber *ln;
+	LineNumber **ln;
 	U2 count, i;
 
 	printf("      LineNumberTable:\n");
 	count = lnattr->line_number_table_length;
 	ln = lnattr->line_number_table;
 	for (i = 0; i < count; i++) {
-		printf("        line %u: %u\n", ln[i].line_number, ln[i].start_pc);
+		printf("        line %u: %u\n", ln[i]->line_number, ln[i]->start_pc);
 	}
 }
 
@@ -674,7 +685,7 @@ printlinenumbers(LineNumberTable_attribute *lnattr)
 static void
 printlocalvars(ClassFile *class, LocalVariableTable_attribute *lvattr)
 {
-	LocalVariable *lv;
+	LocalVariable **lv;
 	U2 count, i;
 
 	count = lvattr->local_variable_table_length;
@@ -684,8 +695,8 @@ printlocalvars(ClassFile *class, LocalVariableTable_attribute *lvattr)
 	printf("      LocalVariableTable:\n");
 	printf("        Start  Length  Slot  Name   Signature\n");
 	for (i = 0; i < count; i++) {
-		printf("      %7u %7u %5u %5s   %s\n", lv[i].start_pc, lv[i].length, lv[i].index,
-		       class_getutf8(class, lv[i].name_index), class_getutf8(class, lv[i].descriptor_index));
+		printf("      %7u %7u %5u %5s   %s\n", lv[i]->start_pc, lv[i]->length, lv[i]->index,
+		       class_getutf8(class, lv[i]->name_index), class_getutf8(class, lv[i]->descriptor_index));
 	}
 }
 
@@ -694,15 +705,19 @@ static void
 printcode(ClassFile *class, Code_attribute *codeattr, U2 nargs)
 {
 	int32_t j, npairs, def, high, low;
-	CP *cp;
+	CP **cp;
 	U1 *code;
 	U1 opcode;
-	U2 cpi;         /* constant pool index */
+	U1 byte;
+	U2 u;
 	U4 count;
 	U4 a, b, c, d;
 	U4 i, base;
+	int8_t ch;
+	int16_t off;    /* branch offset */
+	int32_t offw;   /* wide branch offset */
 	int n, m;       /* number of printed column, to format output */
-	char *name, *type;
+	char *cname, *name, *type;
 
 	cp = class->constant_pool;
 	code = codeattr->code;
@@ -738,6 +753,51 @@ printcode(ClassFile *class, Code_attribute *codeattr, U2 nargs)
 				break;
 			}
 			break;
+		case BIPUSH:
+			byte = code[++i];
+			memcpy(&ch, &byte, sizeof(ch));
+			m = getcol(CODEINDEX, n);
+			printf("%*c%d", m, ' ', ch);
+			break;
+		case IINC:
+			byte = code[++i];
+			memcpy(&ch, &byte, sizeof(ch));
+			m = getcol(CODEINDEX, n);
+			printf("%*c%d, ", m, ' ', ch);
+			byte = code[++i];
+			memcpy(&ch, &byte, sizeof(ch));
+			printf("%d", ch);
+			break;
+		case GOTO:
+		case IF_ACMPEQ:
+		case IF_ACMPNE:
+		case IF_ICMPEQ:
+		case IF_ICMPNE:
+		case IF_ICMPLT:
+		case IF_ICMPGT:
+		case IF_ICMPLE:
+		case IF_ICMPGE:
+			base = i;
+			u = 0;
+			u = code[++i] << 8;
+			u |= code[++i];
+			memcpy(&off, &u, sizeof(off));
+			off += base;
+			m = getcol(CODEINDEX, n);
+			printf("%*c%d", m, ' ', off);
+			break;
+		case GOTO_W:
+			base = i;
+			a = 0;
+			a = code[++i] << 24;
+			a |= code[++i] << 16;
+			a |= code[++i] << 8;
+			a |= code[++i];
+			memcpy(&offw, &a, sizeof(offw));
+			offw += base;
+			m = getcol(CODEINDEX, n);
+			printf("%*c%d", m, ' ', offw);
+			break;
 		case LOOKUPSWITCH:
 			i++;
 			while (i % 4)
@@ -770,7 +830,7 @@ printcode(ClassFile *class, Code_attribute *codeattr, U2 nargs)
 			c = code[i++];
 			d = code[i++];
 			high = (a << 24) | (b << 16) | (c << 8) | d;
-			printf("   {  // %d to %d\n", low, high);
+			printf("   { // %d to %d\n", low, high);
 			for (j = low; j <= high; j++) {
 				a = code[i++];
 				b = code[i++];
@@ -783,28 +843,59 @@ printcode(ClassFile *class, Code_attribute *codeattr, U2 nargs)
 			printf("            }");
 			break;
 		case GETSTATIC:
-			cpi = code[++i] << 8;
-			cpi |= code[++i];
+			u = code[++i] << 8;
+			u |= code[++i];
 			m = getcol(CODEINDEX, n);
-			n += printf("%*c#%u", m, ' ', cpi);
+			n += printf("%*c#%u", m, ' ', u);
 			m = getcol(CODECOMMENT, n);
-			class_getnameandtype(class, cp[cpi].info.fieldref_info.name_and_type_index, &name, &type);
+			class_getnameandtype(class, cp[u]->info.fieldref_info.name_and_type_index, &name, &type);
 			printf("%*c// Field %s.%s:%s", m, ' ',
-			       class_getclassname(class, cp[cpi].info.fieldref_info.class_index),
+			       class_getclassname(class, cp[u]->info.fieldref_info.class_index),
 			       name,
 			       type);
 			break;
 		case INVOKEVIRTUAL:
-			cpi = code[++i] << 8;
-			cpi |= code[++i];
+		case INVOKESPECIAL:
+		case INVOKESTATIC:
+			u = code[++i] << 8;
+			u |= code[++i];
 			m = getcol(CODEINDEX, n);
-			n += printf("%*c#%u", m, ' ', cpi);
+			n += printf("%*c#%u", m, ' ', u);
 			m = getcol(CODECOMMENT, n);
-			class_getnameandtype(class, cp[cpi].info.methodref_info.name_and_type_index, &name, &type);
-			printf("%*c// Method %s.%s:%s", m, ' ',
-			       class_getclassname(class, cp[cpi].info.methodref_info.class_index),
-			       name,
-			       type);
+			class_getnameandtype(class, cp[u]->info.methodref_info.name_and_type_index, &name, &type);
+			cname = class_getclassname(class, cp[u]->info.methodref_info.class_index);
+			if (strcmp(cname, class_getclassname(class, class->this_class)) == 0)
+				cname = "";
+			name = quotename(name);
+			printf("%*c// Method %s%s%s:%s", m, ' ', cname, (*cname == '\0' ? "" : "."), name, type);
+			break;
+		case LDC:
+		case LDC_W:
+		case LDC2_W:
+			u = 0;
+			if (code[i] == LDC_W || code[i] == LDC2_W)
+				u = code[++i];
+			u |= code[++i];
+			m = getcol(CODEINDEX, n);
+			n += printf("%*c#%u", m, ' ', u);
+			m = getcol(CODECOMMENT, n);
+			switch (cp[u]->tag) {
+			case CONSTANT_String:
+				printf("%*c// String %s", m, ' ', class_getstring(class, u));
+				break;
+			case CONSTANT_Long:
+				printf("%*c// Integer %lld", m, ' ', (long long int)class_getlong(class, u));
+				break;
+			case CONSTANT_Double:
+				printf("%*c// double %gd", m, ' ', (double)class_getdouble(class, u));
+				break;
+			case CONSTANT_Integer:
+				printf("%*c// Integer %ld", m, ' ', (long int)class_getinteger(class, u));
+				break;
+			case CONSTANT_Float:
+				printf("%*c// float %gf", m, ' ', (float)class_getfloat(class, u));
+				break;
+			}
 			break;
 		default:
 			for (j = 0; i < count && j < class_getnoperands(opcode); j++)
@@ -827,7 +918,7 @@ printmethod(ClassFile *class, U2 count)
 	Attribute *lvattr;      /* LocalVariableTable_attribute */
 	Method *method;
 
-	method = &class->methods[count];
+	method = class->methods[count];
 	if (!pflag && method->access_flags & ACC_PRIVATE)
 		return;
 	if (count && (lflag || sflag || cflag))
