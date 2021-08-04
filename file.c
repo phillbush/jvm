@@ -10,6 +10,7 @@
 
 #define MAGIC           0xCAFEBABE
 
+/* most functions return -1 on error or have a error: label */
 #define TRY(expr) \
 	do { \
 		if ((expr) == -1) { \
@@ -50,22 +51,22 @@ static char *errstr[] = {
 	[ERR_TAG] = "unknown constant pool tag",
 };
 
-/* call malloc; add returned pointer to stack of pointers to be freed when error occurs */
+/* call malloc for *p; return -1 on error */
 static int
-fmalloc(void **p, size_t size)
+fmalloc(void *p, size_t size)
 {
-	if ((*p = malloc(size)) == NULL) {
+	if ((p = malloc(size)) == NULL) {
 		errtag = ERR_ALLOC;
 		return -1;
 	}
 	return 0;
 }
 
-/* call calloc; add returned pointer to stack of pointers to be freed when error occurs */
+/* call calloc for *p; return -1 on error */
 static int
-fcalloc(void **p, size_t nmemb, size_t size)
+fcalloc(void *p, size_t nmemb, size_t size)
 {
-	if ((*p = calloc(nmemb, size)) == NULL) {
+	if ((p = calloc(nmemb, size)) == NULL) {
 		errtag = ERR_ALLOC;
 		return -1;
 	}
@@ -133,7 +134,7 @@ isdescriptor(char *s)
 	return 1;
 }
 
-/* check if kind of method handle is valid */
+/* check if kind of method handle is valid; return -1 and set errtag if it isn't */
 static int
 checkkind(U1 kind)
 {
@@ -144,7 +145,7 @@ checkkind(U1 kind)
 	return 0;
 }
 
-/* check if index is valid and points to a given tag in the constant pool */
+/* check if index is valid and points to a given tag in the constant pool; return -1 and set errtag if doesn't */
 static int
 checkindex(CP **cp, U2 count, ConstantTag tag, U2 index)
 {
@@ -185,7 +186,7 @@ error:
 	return -1;
 }
 
-/* check if index is points to a valid descriptor in the constant pool */
+/* check if index is valid and points to a valid descriptor in the constant pool; return -1 and set errtag if doesn't */
 static int
 checkdescriptor(CP **cp, U2 count, U2 index)
 {
@@ -204,7 +205,7 @@ checkdescriptor(CP **cp, U2 count, U2 index)
 	return 0;
 }
 
-/* check if method is not special (<init> or <clinit>) */
+/* check if method is not special (<init> or <clinit>); return -1 and set errtag if it is*/
 static int
 checkmethod(ClassFile *class, U2 index)
 {
@@ -224,8 +225,10 @@ checkmethod(ClassFile *class, U2 index)
 static int
 readb(FILE *fp, void *buf, U4 count)
 {
-	if (fread(buf, 1, count, fp) != count)
+	if (fread(buf, 1, count, fp) != count) {
+		errtag = ERR_READ;
 		return -1;
+	}
 	return 0;
 }
 
@@ -256,7 +259,7 @@ error:
 static int
 reads(FILE *fp, char **s, U2 count)
 {
-	TRY(fmalloc((void **)s, count + 1));
+	TRY(fmalloc(s, count + 1));
 	TRY(readb(fp, (*s), count));
 	(*s)[count] = '\0';
 	return 0;
@@ -303,9 +306,9 @@ readcp(FILE *fp, CP ***cp, U2 count)
 		*cp = NULL;
 		return 0;
 	}
-	TRY(fcalloc((void **)cp, count, sizeof(**cp)));
+	TRY(fcalloc(cp, count, sizeof(**cp)));
 	for (i = 1; i < count; i++) {
-		TRY(fcalloc((void **)&(*cp)[i], 1, sizeof(*(*cp)[i])));
+		TRY(fcalloc(&(*cp)[i], 1, sizeof(*(*cp)[i])));
 		TRY(readu(fp, &(*cp)[i]->tag, 1));
 		switch ((*cp)[i]->tag) {
 		case CONSTANT_Utf8:
@@ -444,7 +447,7 @@ readinterfaces(FILE *fp, U2 **p, U2 count)
 		*p = NULL;
 		return 0;
 	}
-	TRY(fcalloc((void **)p, count, sizeof(**p)));
+	TRY(fcalloc(p, count, sizeof(**p)));
 	for (i = 0; i < count; i++)
 		TRY(readu(fp, &(*p)[i], 2));
 	return 0;
@@ -464,7 +467,7 @@ readcode(FILE *fp, U1 **code, ClassFile *class, U4 count)
 		*code = NULL;
 		return 0;
 	}
-	TRY(fmalloc((void **)code, count));
+	TRY(fmalloc(code, count));
 	for (i = 0; i < count; i++) {
 		TRY(readu(fp, &(*code)[i], 1));
 		if ((*code)[i] >= CodeLast)
@@ -589,7 +592,7 @@ readindices(FILE *fp, U2 **indices, U2 count)
 		*indices = NULL;
 		return 0;
 	}
-	TRY(fcalloc((void **)indices, count, sizeof(**indices)));
+	TRY(fcalloc(indices, count, sizeof(**indices)));
 	for (i = 0; i < count; i++)
 		TRY(readu(fp, &(*indices)[i], 2));
 	return 0;
@@ -607,9 +610,9 @@ readexceptions(FILE *fp, Exception ***p, U2 count)
 		*p = NULL;
 		return 0;
 	}
-	TRY(fcalloc((void **)p, count, sizeof(*(*p))));
+	TRY(fcalloc(p, count, sizeof(*(*p))));
 	for (i = 0; i < count; i++) {
-		TRY(fcalloc((void **)&(*p)[i], 1, sizeof(*(*p)[i])));
+		TRY(fcalloc(&(*p)[i], 1, sizeof(*(*p)[i])));
 		TRY(readu(fp, &(*p)[i]->start_pc, 2));
 		TRY(readu(fp, &(*p)[i]->end_pc, 2));
 		TRY(readu(fp, &(*p)[i]->handler_pc, 2));
@@ -630,9 +633,9 @@ readclasses(FILE *fp, InnerClass ***p, ClassFile *class, U2 count)
 		*p = NULL;
 		return 0;
 	}
-	TRY(fcalloc((void **)p, count, sizeof(*(*p))));
+	TRY(fcalloc(p, count, sizeof(*(*p))));
 	for (i = 0; i < count; i++) {
-		TRY(fcalloc((void **)&(*p)[i], 1, sizeof(*(*p)[i])));
+		TRY(fcalloc(&(*p)[i], 1, sizeof(*(*p)[i])));
 		TRY(readindex(fp, &(*p)[i]->inner_class_info_index, 0, class, CONSTANT_Class));
 		TRY(readindex(fp, &(*p)[i]->outer_class_info_index, 1, class, CONSTANT_Class));
 		TRY(readindex(fp, &(*p)[i]->inner_name_index, 1, class, CONSTANT_Utf8));
@@ -653,9 +656,9 @@ readlinenumber(FILE *fp, LineNumber ***p, U2 count)
 		*p = NULL;
 		return 0;
 	}
-	TRY(fcalloc((void **)p, count, sizeof(*(*p))));
+	TRY(fcalloc(p, count, sizeof(*(*p))));
 	for (i = 0; i < count; i++) {
-		TRY(fcalloc((void **)&(*p)[i], 1, sizeof(*(*p)[i])));
+		TRY(fcalloc(&(*p)[i], 1, sizeof(*(*p)[i])));
 		TRY(readu(fp, &(*p)[i]->start_pc, 2));
 		TRY(readu(fp, &(*p)[i]->line_number, 2));
 	}
@@ -674,9 +677,9 @@ readlocalvariable(FILE *fp, LocalVariable ***p, ClassFile *class, U2 count)
 		*p = NULL;
 		return 0;
 	}
-	TRY(fcalloc((void **)p, count, sizeof *(*p)));
+	TRY(fcalloc(p, count, sizeof *(*p)));
 	for (i = 0; i < count; i++) {
-		TRY(fcalloc((void **)&(*p)[i], 1, sizeof *(*p)[i]));
+		TRY(fcalloc(&(*p)[i], 1, sizeof *(*p)[i]));
 		TRY(readu(fp, &(*p)[i]->start_pc, 2));
 		TRY(readu(fp, &(*p)[i]->length, 2));
 		TRY(readindex(fp, &(*p)[i]->name_index, 0, class, CONSTANT_Utf8));
@@ -701,9 +704,9 @@ readattributes(FILE *fp, Attribute ***p, ClassFile *class, U2 count)
 		*p = NULL;
 		return 0;
 	}
-	TRY(fcalloc((void **)p, count, sizeof(**p)));
+	TRY(fcalloc(p, count, sizeof(**p)));
 	for (i = 0; i < count; i++) {
-		TRY(fcalloc((void **)&(*p)[i], 1, sizeof(*(*p)[i])));
+		TRY(fcalloc(&(*p)[i], 1, sizeof(*(*p)[i])));
 		TRY(readindex(fp, &index, 0, class, CONSTANT_Utf8));
 		TRY(readu(fp, &length, 4));
 		(*p)[i]->tag = getattributetag(class->constant_pool[index]->info.utf8_info.bytes);
@@ -765,9 +768,9 @@ readfields(FILE *fp, Field ***p, ClassFile *class, U2 count)
 		*p = NULL;
 		return 0;
 	}
-	TRY(fcalloc((void **)p, count, sizeof(**p)));
+	TRY(fcalloc(p, count, sizeof(**p)));
 	for (i = 0; i < count; i++) {
-		TRY(fcalloc((void **)&(*p)[i], 1, sizeof(*(*p)[i])));
+		TRY(fcalloc(&(*p)[i], 1, sizeof(*(*p)[i])));
 		TRY(readu(fp, &(*p)[i]->access_flags, 2));
 		TRY(readindex(fp, &(*p)[i]->name_index, 0, class, CONSTANT_Utf8));
 		TRY(readdescriptor(fp, &(*p)[i]->descriptor_index, class));
@@ -789,9 +792,9 @@ readmethods(FILE *fp, Method ***p, ClassFile *class, U2 count)
 		*p = NULL;
 		return 0;
 	}
-	TRY(fcalloc((void **)p, count, sizeof(**p)));
+	TRY(fcalloc(p, count, sizeof(**p)));
 	for (i = 0; i < count; i++) {
-		TRY(fcalloc((void **)&(*p)[i], 1, sizeof(*(*p)[i])));
+		TRY(fcalloc(&(*p)[i], 1, sizeof(*(*p)[i])));
 		TRY(readu(fp, &(*p)[i]->access_flags, 2));
 		TRY(readindex(fp, &(*p)[i]->name_index, 0, class, CONSTANT_Utf8));
 		TRY(readdescriptor(fp, &(*p)[i]->descriptor_index, class));
