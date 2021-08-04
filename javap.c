@@ -419,7 +419,7 @@ printclass(ClassFile *class, U2 index)
 
 	s = class_getclassname(class, index);
 	while (*s) {
-		if (*s == '/')
+		if (*s == TYPE_SEPARATOR)
 			putchar('.');
 		else
 			putchar(*s);
@@ -513,45 +513,45 @@ printtype(char *type)
 
 	s = type + 1;
 	switch (*type) {
-	case 'B':
+	case TYPE_BYTE:
 		printf("byte");
 		break;
-	case 'C':
+	case TYPE_CHAR:
 		printf("char");
 		break;
-	case 'D':
+	case TYPE_DOUBLE:
 		printf("double");
 		break;
-	case 'F':
+	case TYPE_FLOAT:
 		printf("float");
 		break;
-	case 'I':
+	case TYPE_INT:
 		printf("int");
 		break;
-	case 'J':
+	case TYPE_LONG:
 		printf("long");
 		break;
-	case 'L':
-		while (*s && *s != ';') {
-			if (*s == '/')
+	case TYPE_REFERENCE:
+		while (*s && *s != TYPE_TERMINAL) {
+			if (*s == TYPE_SEPARATOR)
 				putchar('.');
 			else
 				putchar(*s);
 			s++;
 		}
-		if (*s == ';')
+		if (*s == TYPE_TERMINAL)
 			s++;
 		break;
-	case 'S':
+	case TYPE_SHORT:
 		printf("short");
 		break;
-	case 'V':
+	case TYPE_VOID:
 		printf("void");
 		break;
-	case 'Z':
+	case TYPE_BOOLEAN:
 		printf("boolean");
 		break;
-	case '[':
+	case TYPE_ARRAY:
 		s = printtype(s);
 		printf("[]");
 		break;

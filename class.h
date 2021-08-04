@@ -342,6 +342,22 @@ typedef enum ReferenceKind {
 	REF_last                = 10,
 } ReferenceKind;
 
+typedef enum FieldType {
+	TYPE_BYTE       = 'B',
+	TYPE_CHAR       = 'C',
+	TYPE_DOUBLE     = 'D',
+	TYPE_FLOAT      = 'F',
+	TYPE_INT        = 'I',
+	TYPE_LONG       = 'J',
+	TYPE_REFERENCE  = 'L',
+	TYPE_SHORT      = 'S',
+	TYPE_VOID       = 'V',
+	TYPE_BOOLEAN    = 'Z',
+	TYPE_ARRAY      = '[',
+	TYPE_TERMINAL   = ';',
+	TYPE_SEPARATOR  = '/',
+} FieldType;
+
 typedef struct CONSTANT_Utf8_info {
 	U2      length;
 	char   *bytes;

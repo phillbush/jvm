@@ -1523,12 +1523,12 @@ opmultianewarray(Frame *frame)
 	sizes = ecalloc(dimension, sizeof *sizes);
 	type = class_getclassname(frame->class, index);
 	switch (*type) {
-	case 'L':
-	case '[':
+	case TYPE_REFERENCE:
+	case TYPE_ARRAY:
 		s = sizeof (void *);
 		break;
-	case 'D':
-	case 'J':
+	case TYPE_DOUBLE:
+	case TYPE_LONG:
 		s = sizeof (int64_t);
 		break;
 	default:
@@ -1922,31 +1922,31 @@ methodcall(ClassFile *class, Frame *frame, char *name, char *descriptor, U2 flag
 			v = frame_stackpop(frame);
 			frame_localstore(newframe, i++, v);
 			switch (*(++s)) {
-			case 'L':
-				while (*s && *s != ';') {
+			case TYPE_REFERENCE:
+				while (*s && *s != TYPE_TERMINAL) {
 					s++;
 				}
-				if (*s == ';') {
+				if (*s == TYPE_TERMINAL) {
 					s++;
 				}
 				break;
-			case '[':
-				while (*s == '[') {
+			case TYPE_ARRAY:
+				while (*s == TYPE_ARRAY) {
 					s++;
 				}
-				if (*s == 'L') {
-					while (*s && *s != ';') {
+				if (*s == TYPE_REFERENCE) {
+					while (*s && *s != TYPE_TERMINAL) {
 						s++;
 					}
-					if (*s == ';') {
+					if (*s == TYPE_TERMINAL) {
 						s++;
 					}
 				} else {
 					s++;
 				}
 				break;
-			case 'D':
-			case 'J':
+			case TYPE_DOUBLE:
+			case TYPE_LONG:
 				frame_localstore(newframe, i++, v);
 				/* FALLTHROUGH */
 			default:
