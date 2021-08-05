@@ -56,14 +56,17 @@ class.o:  class.h util.h
 .c.o:
 	${CC} ${CFLAGS} -c $<
 
+${TESTP}: javap
+${TESTJ}: java
+
 # test the disassembler (javap) on the test classes
-.class.p: ${JAVAP}
+.class.p:
 	@echo
 	@echo "========== Disassembling $<"
 	@./${JAVAP} ${JAVAPFLAGS} $<
 
 # test the jvm (java) on the test classes
-.class.j: ${JAVA}
+.class.j:
 	@echo
 	@echo "========== Running $<"
 	@./${JAVA} -cp "$$(echo $< | sed 's,/[^/]*,,')" ${JAVAFLAGS} "$$(echo $< | sed 's,.*/,,; s,.class,,')"
@@ -75,4 +78,4 @@ class.o:  class.h util.h
 clean:
 	-rm ${JAVA} ${JAVAP} ${OBJS} ${CLASSES} 2>/dev/null
 
-.PHONY: all clean lint testp ${TESTP} ${TESTJ}
+.PHONY: all clean lint testp testj
