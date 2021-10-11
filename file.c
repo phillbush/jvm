@@ -380,6 +380,7 @@ readcp(FILE *fp, CP ***cp, U2 count)
 			break;
 		case CONSTANT_String:
 			TRY(checkindex((*cp), count, CONSTANT_Utf8, (*cp)[i]->info.string_info.string_index));
+			(*cp)[i]->info.string_info.string = (*cp)[(*cp)[i]->info.string_info.string_index]->info.utf8_info.bytes;
 			break;
 		case CONSTANT_Fieldref:
 			TRY(checkindex((*cp), count, CONSTANT_Class, (*cp)[i]->info.fieldref_info.class_index));
@@ -467,7 +468,7 @@ readcode(FILE *fp, U1 **code, ClassFile *class, U4 count)
 	TRY(fmalloc((void **)code, count));
 	for (i = 0; i < count; i++) {
 		TRY(readu(fp, &(*code)[i], 1));
-		if ((*code)[i] >= CodeLast)
+		if ((*code)[i] >= CODE_LAST)
 			goto error;
 		switch ((*code)[i]) {
 		case WIDE:

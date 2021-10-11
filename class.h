@@ -32,7 +32,8 @@ typedef enum TypeCode {
 	T_BYTE          = 8,
 	T_SHORT         = 9,
 	T_INT           = 10,
-	T_LONG          = 11
+	T_LONG          = 11,
+	T_LAST
 } TypeCode;
 
 typedef enum Instruction {
@@ -259,7 +260,7 @@ typedef enum Instruction {
 	JSR_W           = 0xC9,
 
 	/* reserved */
-	CodeLast        = 0xCA,
+	CODE_LAST       = 0xCA,
 	BREAKPOINT      = 0xCA,
 	IMPDEP1         = 0xFE,
 	IMPDEP2         = 0xFF
@@ -387,6 +388,7 @@ typedef struct CONSTANT_Class_info {
 
 typedef struct CONSTANT_String_info {
 	U2      string_index;
+	char   *string;
 } CONSTANT_String_info;
 
 typedef struct CONSTANT_Fieldref_info {

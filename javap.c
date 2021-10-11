@@ -29,7 +29,7 @@ static char *cptags[] = {
 	[CONSTANT_MethodType]         = "MethodType",
 	[CONSTANT_InvokeDynamic]      = "InvokeDynamic",
 };
-static char *instrnames[] = {
+static char *instrnames[CODE_LAST] = {
 	[NOP]             = "nop",
 	[ACONST_NULL]     = "aconst_null",
 	[ICONST_M1]       = "iconst_m1",
@@ -233,6 +233,16 @@ static char *instrnames[] = {
 	[GOTO_W]          = "goto_w",
 	[JSR_W]           = "jsr_w",
 };
+static char *typenames[T_LAST] = {
+	[T_BOOLEAN]      = "boolean",
+	[T_CHAR]         = "char",
+	[T_FLOAT]        = "float",
+	[T_DOUBLE]       = "double",
+	[T_BYTE]         = "byte",
+	[T_SHORT]        = "short",
+	[T_INT]          = "int",
+	[T_LONG]         = "long",
+};
 
 /* flags */
 static int cflag = 0;
@@ -435,6 +445,7 @@ printmeta(ClassFile *class)
 
 	printf("  minor version: %u\n", class->minor_version);
 	printf("  major version: %u\n", class->major_version);
+	printf("  Java version: %u.0\n", class->major_version - 44);
 	printf("  ");
 	printflags(class->access_flags, TYPE_CLASS);
 
@@ -615,7 +626,7 @@ printconstant(ClassFile *class, Field *field)
 		                            class->constant_pool[index]->info.long_info.low_bytes));
 		break;
 	case CONSTANT_Float:
-		printf("float %gd", getfloat(class->constant_pool[index]->info.float_info.bytes));
+		printf("float %gf", getfloat(class->constant_pool[index]->info.float_info.bytes));
 		break;
 	case CONSTANT_Double:
 		printf("double %gd", getdouble(class->constant_pool[index]->info.double_info.high_bytes,
@@ -732,9 +743,10 @@ printcode(ClassFile *class, Code_attribute *codeattr, U2 nargs)
 		if (verbose)
 			printf("  ");
 		n = printf("%8u: %s", i, instrnames[opcode]);
+		m = getcol(CODEINDEX, n);
 		switch (code[i]) {
 		case WIDE:
-			switch (code[i]) {
+			switch (code[++i]) {
 			case ILOAD:
 			case FLOAD:
 			case ALOAD:
@@ -756,13 +768,11 @@ printcode(ClassFile *class, Code_attribute *codeattr, U2 nargs)
 		case BIPUSH:
 			byte = code[++i];
 			memcpy(&ch, &byte, sizeof(ch));
-			m = getcol(CODEINDEX, n);
 			printf("%*c%d", m, ' ', ch);
 			break;
 		case IINC:
 			byte = code[++i];
 			memcpy(&ch, &byte, sizeof(ch));
-			m = getcol(CODEINDEX, n);
 			printf("%*c%d, ", m, ' ', ch);
 			byte = code[++i];
 			memcpy(&ch, &byte, sizeof(ch));
@@ -777,16 +787,23 @@ printcode(ClassFile *class, Code_attribute *codeattr, U2 nargs)
 		case IF_ICMPGT:
 		case IF_ICMPLE:
 		case IF_ICMPGE:
+		case IFEQ:
+		case IFNE:
+		case IFLT:
+		case IFGT:
+		case IFLE:
+		case IFGE:
+		case JSR:
 			base = i;
 			u = 0;
 			u = code[++i] << 8;
 			u |= code[++i];
 			memcpy(&off, &u, sizeof(off));
 			off += base;
-			m = getcol(CODEINDEX, n);
 			printf("%*c%d", m, ' ', off);
 			break;
 		case GOTO_W:
+		case JSR_W:
 			base = i;
 			a = 0;
 			a = code[++i] << 24;
@@ -795,7 +812,6 @@ printcode(ClassFile *class, Code_attribute *codeattr, U2 nargs)
 			a |= code[++i];
 			memcpy(&offw, &a, sizeof(offw));
 			offw += base;
-			m = getcol(CODEINDEX, n);
 			printf("%*c%d", m, ' ', offw);
 			break;
 		case LOOKUPSWITCH:
@@ -845,7 +861,6 @@ printcode(ClassFile *class, Code_attribute *codeattr, U2 nargs)
 		case GETSTATIC:
 			u = code[++i] << 8;
 			u |= code[++i];
-			m = getcol(CODEINDEX, n);
 			n += printf("%*c#%u", m, ' ', u);
 			m = getcol(CODECOMMENT, n);
 			class_getnameandtype(class, cp[u]->info.fieldref_info.name_and_type_index, &name, &type);
@@ -859,7 +874,6 @@ printcode(ClassFile *class, Code_attribute *codeattr, U2 nargs)
 		case INVOKESTATIC:
 			u = code[++i] << 8;
 			u |= code[++i];
-			m = getcol(CODEINDEX, n);
 			n += printf("%*c#%u", m, ' ', u);
 			m = getcol(CODECOMMENT, n);
 			class_getnameandtype(class, cp[u]->info.methodref_info.name_and_type_index, &name, &type);
@@ -876,7 +890,6 @@ printcode(ClassFile *class, Code_attribute *codeattr, U2 nargs)
 			if (code[i] == LDC_W || code[i] == LDC2_W)
 				u = code[++i];
 			u |= code[++i];
-			m = getcol(CODEINDEX, n);
 			n += printf("%*c#%u", m, ' ', u);
 			m = getcol(CODECOMMENT, n);
 			switch (cp[u]->tag) {
@@ -896,6 +909,17 @@ printcode(ClassFile *class, Code_attribute *codeattr, U2 nargs)
 				printf("%*c// float %gf", m, ' ', (float)class_getfloat(class, u));
 				break;
 			}
+			break;
+		case MULTIANEWARRAY:
+			u = code[++i] << 8;
+			u |= code[++i];
+			n += printf(" #%u,  %u", u, code[++i]);
+			m = getcol(CODECOMMENT, n);
+			printf("%*c// class \"%s\"", m, ' ', class_getutf8(class, cp[u]->info.class_info.name_index));
+			break;
+		case NEWARRAY:
+			type = typenames[code[++i]];
+			printf("%*c%s", m, ' ', type);
 			break;
 		default:
 			for (j = 0; i < count && j < class_getnoperands(opcode); j++)

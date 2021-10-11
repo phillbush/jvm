@@ -92,6 +92,21 @@ classfree(void)
 	}
 }
 
+/* initialize class */
+static void
+classinit(ClassFile *class)
+{
+	Method *method;
+
+	if (class->init)
+		return;
+	class->init = 1;
+	if (class->super)
+		classinit(class->super);
+	if ((method = class_getmethod(class, "<clinit>", "()V")) != NULL)
+	(void)methodcall(class, NULL, "<clinit>", "()V", (class->major_version >= 51 ? ACC_STATIC : ACC_NONE));
+}
+
 /* recursivelly load class and its superclasses from file matching class name */
 static ClassFile *
 classload(char *classname)
@@ -148,22 +163,8 @@ classload(char *classname)
 			}
 		}
 	}
+	classinit(class);
 	return class;
-}
-
-/* initialize class */
-static void
-classinit(ClassFile *class)
-{
-	Method *method;
-
-	if (class->init)
-		return;
-	class->init = 1;
-	if (class->super)
-		classinit(class->super);
-	if ((method = class_getmethod(class, "<clinit>", "()V")) != NULL)
-	(void)methodcall(class, NULL, "<clinit>", "()V", (class->major_version >= 51 ? ACC_STATIC : ACC_NONE));
 }
 
 /* resolve constant reference */
@@ -189,7 +190,7 @@ resolveconstant(ClassFile *class, U2 index)
 		break;
 	case CONSTANT_String:
 		s = class_getstring(class, index);
-		v.v = heap_alloc(1, sizeof (char *));
+		v.v = heap_alloc(0, 0);
 		v.v->obj = s;
 		break;
 	}
@@ -197,25 +198,51 @@ resolveconstant(ClassFile *class, U2 index)
 }
 
 /* resolve field reference */
-static Value
-resolvefield(ClassFile *class, CONSTANT_Fieldref_info *fieldref)
+static CP *
+resolvefield(ClassFile *class, CONSTANT_Fieldref_info *fieldref, Heap **p)
 {
-	Value v;
+	Field *field;
 	enum JavaClass jclass;
+	U2 index, i;
 	char *classname, *name, *type;
 
-	v.v = NULL;
+	if (p != NULL)
+		*p = NULL;
 	classname = class_getclassname(class, fieldref->class_index);
 	class_getnameandtype(class, fieldref->name_and_type_index, &name, &type);
 	if ((jclass = native_javaclass(classname)) != 0) {
-		v.v = heap_alloc(1, sizeof (void *));
-		v.v->obj = native_javaobj(jclass, name, type);
-	} else {
-		// TODO
+		if (p != NULL) {
+			(*p) = heap_alloc(0, 0);
+			((Heap *)*p)->obj = native_javaobj(jclass, name, type);
+		}
+		return NULL;
+	} else if ((class = classload(classname)) &&
+	           (field = class_getfield(class, name, type))) {
+		index = 0;
+		for (i = 0; i < field->attributes_count; i++) {
+			if (field->attributes[i]->tag == ConstantValue) {
+				index = field->attributes[i]->info.constantvalue.constantvalue_index;
+				break;
+			}
+		}
+		if (index != 0) {
+			return class->constant_pool[index];
+		}
 	}
-	if (v.v == NULL)
-		errx(EXIT_FAILURE, "could not resolve field");
-	return v;
+	errx(EXIT_FAILURE, "could not resolve field");
+	return NULL;
+}
+
+/* aconst_null: push null */
+static int
+opaconst_null(Frame *frame)
+{
+	Value v;
+
+	v.v = heap_alloc(0, 0);
+	v.v->obj = NULL;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
 }
 
 /* aaload: load reference from array */
@@ -279,6 +306,42 @@ opbipush(Frame *frame)
 	return NO_RETURN;
 }
 
+/* d2f: convert double to float */
+static int
+opd2f(Frame *frame)
+{
+	Value v;
+
+	v = frame_stackpop(frame);
+	v.f = v.d;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
+/* d2i: convert double to int */
+static int
+opd2i(Frame *frame)
+{
+	Value v;
+
+	v = frame_stackpop(frame);
+	v.i = v.d;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
+/* d2l: convert double to long */
+static int
+opd2l(Frame *frame)
+{
+	Value v;
+
+	v = frame_stackpop(frame);
+	v.l = v.d;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
 /* dadd: add double */
 static int
 opdadd(Frame *frame)
@@ -327,6 +390,46 @@ opdastore(Frame *frame)
 		// TODO: throw ArrayIndexOutOfBoundsException
 	}
 	((double *)va.v->obj)[vi.i] = vv.d;
+	return NO_RETURN;
+}
+
+/* dcmpg: compare double */
+static int
+opdcmpg(Frame *frame)
+{
+	Value v1, v2, v;
+
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	if (v1.d > v2.d)
+		v.i = 1;
+	else if (v1.d == v2.d)
+		v.i = 0;
+	else if (v1.d < v2.d)
+		v.i = -1;
+	else
+		v.i = 1;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
+/* dcmpl: compare double */
+static int
+opdcmpl(Frame *frame)
+{
+	Value v1, v2, v;
+
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	if (v1.d > v2.d)
+		v.i = 1;
+	else if (v1.d == v2.d)
+		v.i = 0;
+	else if (v1.d < v2.d)
+		v.i = -1;
+	else
+		v.i = -1;
+	frame_stackpush(frame, v);
 	return NO_RETURN;
 }
 
@@ -509,6 +612,172 @@ opdup_x2(Frame *frame)
 	return NO_RETURN;
 }
 
+/* swap: swap the top two operand stack values */
+static int
+opswap(Frame *frame)
+{
+	Value v1, v2;
+
+	v1 = frame_stackpop(frame);
+	v2 = frame_stackpop(frame);
+	frame_stackpush(frame, v1);
+	frame_stackpush(frame, v2);
+	return NO_RETURN;
+}
+
+/* ishl: shift left int */
+static int
+opishl(Frame *frame)
+{
+	Value v1, v2;
+
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	v1.i <<= v2.i;
+	frame_stackpush(frame, v1);
+	return NO_RETURN;
+}
+
+/* lshl: shift left long */
+static int
+oplshl(Frame *frame)
+{
+	Value v1, v2;
+
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	v1.l <<= v2.l;
+	frame_stackpush(frame, v1);
+	return NO_RETURN;
+}
+
+/* ishr: arithmetic shift right int */
+static int
+opishr(Frame *frame)
+{
+	Value v1, v2;
+
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	v1.i >>= v2.i;
+	frame_stackpush(frame, v1);
+	return NO_RETURN;
+}
+
+/* lshr: arithmetic shift right long */
+static int
+oplshr(Frame *frame)
+{
+	Value v1, v2;
+
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	v1.l >>= v2.l;
+	frame_stackpush(frame, v1);
+	return NO_RETURN;
+}
+
+/* iushr: logical shift right int */
+static int
+opiushr(Frame *frame)
+{
+	Value v1, v2;
+
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	v1.i = (unsigned)v1.i >> v2.i;
+	frame_stackpush(frame, v1);
+	return NO_RETURN;
+}
+
+/* lushr: logical shift right long */
+static int
+oplushr(Frame *frame)
+{
+	Value v1, v2;
+
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	v1.l = (unsigned)v1.l >> v2.l;
+	frame_stackpush(frame, v1);
+	return NO_RETURN;
+}
+
+/* iand: boolean AND int */
+static int
+opiand(Frame *frame)
+{
+	Value v1, v2;
+
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	v1.i &= v2.i;
+	frame_stackpush(frame, v1);
+	return NO_RETURN;
+}
+
+/* ior: boolean OR int */
+static int
+opior(Frame *frame)
+{
+	Value v1, v2;
+
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	v1.i |= v2.i;
+	frame_stackpush(frame, v1);
+	return NO_RETURN;
+}
+
+/* ixor: boolean XOR int */
+static int
+opixor(Frame *frame)
+{
+	Value v1, v2;
+
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	v1.i ^= v2.i;
+	frame_stackpush(frame, v1);
+	return NO_RETURN;
+}
+
+/* f2d: convert float to double */
+static int
+opf2d(Frame *frame)
+{
+	Value v;
+
+	v = frame_stackpop(frame);
+	v.d = v.f;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
+/* f2i: convert float to int */
+static int
+opf2i(Frame *frame)
+{
+	Value v;
+
+	v = frame_stackpop(frame);
+	v.i = v.f;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
+/* f2l: convert float to long */
+static int
+opf2l(Frame *frame)
+{
+	Value v;
+
+	v = frame_stackpop(frame);
+	v.l = v.f;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
 /* fadd: add float */
 static int
 opfadd(Frame *frame)
@@ -557,6 +826,46 @@ opfastore(Frame *frame)
 		// TODO: throw ArrayIndexOutOfBoundsException
 	}
 	((float *)va.v->obj)[vi.i] = vv.f;
+	return NO_RETURN;
+}
+
+/* fcmpg: compare float */
+static int
+opfcmpg(Frame *frame)
+{
+	Value v1, v2, v;
+
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	if (v1.f > v2.f)
+		v.i = 1;
+	else if (v1.f == v2.f)
+		v.i = 0;
+	else if (v1.f < v2.f)
+		v.i = -1;
+	else
+		v.i = 1;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
+/* fcmpl: compare float */
+static int
+opfcmpl(Frame *frame)
+{
+	Value v1, v2, v;
+
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	if (v1.f > v2.f)
+		v.i = 1;
+	else if (v1.f == v2.f)
+		v.i = 0;
+	else if (v1.f < v2.f)
+		v.i = -1;
+	else
+		v.i = -1;
+	frame_stackpush(frame, v);
 	return NO_RETURN;
 }
 
@@ -662,13 +971,34 @@ static int
 opgetstatic(Frame *frame)
 {
 	CONSTANT_Fieldref_info *fieldref;
+	CP *cp;
 	Value v;
 	U2 i;
 
 	i = frame->code->code[frame->pc++] << 8;
 	i |= frame->code->code[frame->pc++];
 	fieldref = &frame->class->constant_pool[i]->info.fieldref_info;
-	v = resolvefield(frame->class, fieldref);
+	cp = resolvefield(frame->class, fieldref, &v.v);
+	if (cp != NULL) {
+		switch (cp->tag) {
+		case CONSTANT_Integer:
+			v.i = getint(cp->info.integer_info.bytes);
+			break;
+		case CONSTANT_Long:
+			v.l = getlong(cp->info.long_info.high_bytes, cp->info.long_info.low_bytes);
+			break;
+		case CONSTANT_Float:
+			v.f = getfloat(cp->info.float_info.bytes);
+			break;
+		case CONSTANT_Double:
+			v.d = getdouble(cp->info.double_info.high_bytes, cp->info.double_info.low_bytes);
+			break;
+		case CONSTANT_String:
+			v.v = heap_alloc(0, 0);
+			v.v->obj = cp->info.string_info.string;
+			break;
+		}
+	}
 	frame_stackpush(frame, v);
 	return NO_RETURN;
 }
@@ -688,6 +1018,23 @@ opgoto(Frame *frame)
 	return NO_RETURN;
 }
 
+/* goto: branch always (wide intex) */
+static int
+opgoto_w(Frame *frame)
+{
+	int16_t off = 0;
+	U4 base, i;
+
+	base = frame->pc - 1;
+	i = frame->code->code[frame->pc++] << 24;
+	i |= frame->code->code[frame->pc++] << 16;
+	i |= frame->code->code[frame->pc++] << 8;
+	i |= frame->code->code[frame->pc++];
+	memcpy(&off, &i, sizeof(off));
+	frame->pc = base + off;
+	return NO_RETURN;
+}
+
 /* i2b: convert int to byte */
 static int
 opi2b(Frame *frame)
@@ -696,6 +1043,66 @@ opi2b(Frame *frame)
 
 	v = frame_stackpop(frame);
 	v.i = v.i & UINT8_MAX;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
+/* i2s: convert int to short */
+static int
+opi2s(Frame *frame)
+{
+	Value v;
+
+	v = frame_stackpop(frame);
+	v.i = v.i & UINT16_MAX;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
+/* i2l: convert int to long */
+static int
+opi2l(Frame *frame)
+{
+	Value v;
+
+	v = frame_stackpop(frame);
+	v.l = v.i;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
+/* i2f: convert int to float */
+static int
+opi2f(Frame *frame)
+{
+	Value v;
+
+	v = frame_stackpop(frame);
+	v.f = v.i;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
+/* i2c: convert int to char */
+static int
+opi2c(Frame *frame)
+{
+	Value v;
+
+	v = frame_stackpop(frame);
+	v.i = v.i & UINT8_MAX;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
+/* i2d: convert int to double */
+static int
+opi2d(Frame *frame)
+{
+	Value v;
+
+	v = frame_stackpop(frame);
+	v.d = v.i;
 	frame_stackpush(frame, v);
 	return NO_RETURN;
 }
@@ -841,6 +1248,46 @@ opidiv(Frame *frame)
 	return NO_RETURN;
 }
 
+/* if_acmpeq: branch if reference comparison succeeds */
+static int
+opif_acmpeq(Frame *frame)
+{
+	Value v1, v2;
+	int16_t off = 0;
+	U2 base, i;
+
+	base = frame->pc - 1;
+	i = frame->code->code[frame->pc++] << 8;
+	i |= frame->code->code[frame->pc++];
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	if (v1.v == v2.v) {
+		memcpy(&off, &i, sizeof off);
+		frame->pc = base + off;
+	}
+	return NO_RETURN;
+}
+
+/* if_acmpne: branch if reference comparison succeeds */
+static int
+opif_acmpne(Frame *frame)
+{
+	Value v1, v2;
+	int16_t off = 0;
+	U2 base, i;
+
+	base = frame->pc - 1;
+	i = frame->code->code[frame->pc++] << 8;
+	i |= frame->code->code[frame->pc++];
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	if (v1.v != v2.v) {
+		memcpy(&off, &i, sizeof off);
+		frame->pc = base + off;
+	}
+	return NO_RETURN;
+}
+
 /* if_icmpeq: branch if int comparison succeeds */
 static int
 opif_icmpeq(Frame *frame)
@@ -961,6 +1408,120 @@ opif_icmpne(Frame *frame)
 	return NO_RETURN;
 }
 
+/* ifeq: branch if int comparison with zero succeeds */
+static int
+opifeq(Frame *frame)
+{
+	Value v;
+	int16_t off = 0;
+	U2 base, i;
+
+	base = frame->pc - 1;
+	i = frame->code->code[frame->pc++] << 8;
+	i |= frame->code->code[frame->pc++];
+	v = frame_stackpop(frame);
+	if (v.i == 0) {
+		memcpy(&off, &i, sizeof off);
+		frame->pc = base + off;
+	}
+	return NO_RETURN;
+}
+
+/* ifne: branch if int comparison with zero succeeds */
+static int
+opifne(Frame *frame)
+{
+	Value v;
+	int16_t off = 0;
+	U2 base, i;
+
+	base = frame->pc - 1;
+	i = frame->code->code[frame->pc++] << 8;
+	i |= frame->code->code[frame->pc++];
+	v = frame_stackpop(frame);
+	if (v.i != 0) {
+		memcpy(&off, &i, sizeof off);
+		frame->pc = base + off;
+	}
+	return NO_RETURN;
+}
+
+/* ifge: branch if int comparison with zero succeeds */
+static int
+opifge(Frame *frame)
+{
+	Value v;
+	int16_t off = 0;
+	U2 base, i;
+
+	base = frame->pc - 1;
+	i = frame->code->code[frame->pc++] << 8;
+	i |= frame->code->code[frame->pc++];
+	v = frame_stackpop(frame);
+	if (v.i >= 0) {
+		memcpy(&off, &i, sizeof off);
+		frame->pc = base + off;
+	}
+	return NO_RETURN;
+}
+
+/* ifgt: branch if int comparison with zero succeeds */
+static int
+opifgt(Frame *frame)
+{
+	Value v;
+	int16_t off = 0;
+	U2 base, i;
+
+	base = frame->pc - 1;
+	i = frame->code->code[frame->pc++] << 8;
+	i |= frame->code->code[frame->pc++];
+	v = frame_stackpop(frame);
+	if (v.i > 0) {
+		memcpy(&off, &i, sizeof off);
+		frame->pc = base + off;
+	}
+	return NO_RETURN;
+}
+
+/* ifle: branch if int comparison with zero succeeds */
+static int
+opifle(Frame *frame)
+{
+	Value v;
+	int16_t off = 0;
+	U2 base, i;
+
+	base = frame->pc - 1;
+	i = frame->code->code[frame->pc++] << 8;
+	i |= frame->code->code[frame->pc++];
+	v = frame_stackpop(frame);
+	if (v.i <= 0) {
+		memcpy(&off, &i, sizeof off);
+		frame->pc = base + off;
+	}
+	return NO_RETURN;
+}
+
+/* iflt: branch if int comparison with zero succeeds */
+static int
+opiflt(Frame *frame)
+{
+	Value v;
+	int16_t off = 0;
+	U2 base, i;
+
+	base = frame->pc - 1;
+	i = frame->code->code[frame->pc++] << 8;
+	i |= frame->code->code[frame->pc++];
+	v = frame_stackpop(frame);
+	if (v.i < 0) {
+		memcpy(&off, &i, sizeof off);
+		frame->pc = base + off;
+	}
+	return NO_RETURN;
+}
+
 /* iinc: increment local variable by constant */
 static int
 opiinc(Frame *frame)
@@ -1059,6 +1620,44 @@ opineg(Frame *frame)
 	return NO_RETURN;
 }
 
+/* ifnonnull: branch if reference is not null */
+static int
+opifnonnull(Frame *frame)
+{
+	Value v;
+	int16_t off = 0;
+	U2 base, i;
+
+	base = frame->pc - 1;
+	i = frame->code->code[frame->pc++] << 8;
+	i |= frame->code->code[frame->pc++];
+	v = frame_stackpop(frame);
+	if (v.v != NULL) {
+		memcpy(&off, &i, sizeof off);
+		frame->pc = base + off;
+	}
+	return NO_RETURN;
+}
+
+/* ifnull: branch if reference is null */
+static int
+opifnull(Frame *frame)
+{
+	Value v;
+	int16_t off = 0;
+	U2 base, i;
+
+	base = frame->pc - 1;
+	i = frame->code->code[frame->pc++] << 8;
+	i |= frame->code->code[frame->pc++];
+	v = frame_stackpop(frame);
+	if (v.v == NULL) {
+		memcpy(&off, &i, sizeof off);
+		frame->pc = base + off;
+	}
+	return NO_RETURN;
+}
+
 /* invokestatic: invoke a class (static) method */
 static int
 opinvokestatic(Frame *frame)
@@ -1079,7 +1678,6 @@ opinvokestatic(Frame *frame)
 	if ((jclass = native_javaclass(classname)) != 0) {
 		native_javamethod(frame, jclass, name, type);
 	} else if ((class = classload(classname)) != NULL) {
-		classinit(class);
 		if (methodcall(class, frame, name, type, ACC_STATIC) == -1) {
 			errx(EXIT_FAILURE, "could not find method %s", name);
 		}
@@ -1107,7 +1705,6 @@ opinvokevirtual(Frame *frame)
 	if ((jclass = native_javaclass(classname)) != 0) {
 		native_javamethod(frame, jclass, name, type);
 	} else if ((class = classload(classname)) != NULL) {
-		classinit(class);
 		if (methodcall(class, NULL, name, type, ACC_STATIC) == -1) {
 			errx(EXIT_FAILURE, "could not find method %s", name);
 		}
@@ -1208,6 +1805,80 @@ opisub(Frame *frame)
 	return NO_RETURN;
 }
 
+/* jsr: jump subroutine */
+static int
+opjsr(Frame *frame)
+{
+	Value v;
+	int16_t off = 0;
+	U2 base, i;
+
+	base = frame->pc - 1;
+	i = frame->code->code[frame->pc++] << 8;
+	i |= frame->code->code[frame->pc++];
+	memcpy(&off, &i, sizeof off);
+	frame->pc = base + off;
+	v.i = base + 2;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
+/* jsr: jump subroutine (wide index) */
+static int
+opjsr_w(Frame *frame)
+{
+	Value v;
+	int16_t off = 0;
+	U4 base, i;
+
+	base = frame->pc - 1;
+	i = frame->code->code[frame->pc++] << 24;
+	i |= frame->code->code[frame->pc++] << 16;
+	i |= frame->code->code[frame->pc++] << 8;
+	i |= frame->code->code[frame->pc++];
+	memcpy(&off, &i, sizeof off);
+	frame->pc = base + off;
+	v.i = base + 4;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
+/* l2d: convert long to double */
+static int
+opl2d(Frame *frame)
+{
+	Value v;
+
+	v = frame_stackpop(frame);
+	v.d = v.l;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
+/* l2f: convert long to float */
+static int
+opl2f(Frame *frame)
+{
+	Value v;
+
+	v = frame_stackpop(frame);
+	v.f = v.l;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
+/* l2i: convert long to int */
+static int
+opl2i(Frame *frame)
+{
+	Value v;
+
+	v = frame_stackpop(frame);
+	v.i = v.l;
+	frame_stackpush(frame, v);
+	return NO_RETURN;
+}
+
 /* ladd: add long */
 static int
 opladd(Frame *frame)
@@ -1240,6 +1911,19 @@ oplaload(Frame *frame)
 	return NO_RETURN;
 }
 
+/* land: boolean AND long */
+static int
+opland(Frame *frame)
+{
+	Value v1, v2;
+
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	v1.l &= v2.l;
+	frame_stackpush(frame, v1);
+	return NO_RETURN;
+}
+
 /* lastore: store into long array */
 static int
 oplastore(Frame *frame)
@@ -1256,6 +1940,24 @@ oplastore(Frame *frame)
 		// TODO: throw ArrayIndexOutOfBoundsException
 	}
 	((long *)va.v->obj)[vi.i] = vv.l;
+	return NO_RETURN;
+}
+
+/* lcmp: compare long */
+static int
+oplcmp(Frame *frame)
+{
+	Value v1, v2, v;
+
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	if (v1.l > v2.l)
+		v.i = 1;
+	else if (v1.l < v2.l)
+		v.i = -1;
+	else
+		v.i = 0;
+	frame_stackpush(frame, v);
 	return NO_RETURN;
 }
 
@@ -1417,6 +2119,62 @@ oplneg(Frame *frame)
 	return NO_RETURN;
 }
 
+/* lookupswitch: access jump table by key match and jump */
+static int
+oplookupswitch(Frame *frame)
+{
+	int32_t def, npairs, match, offset, j;
+	U4 a, b, c, d, baseaddr, targetaddr;
+	Value v;
+
+	baseaddr = frame->pc - 1;
+	while (frame->pc % 4)
+		frame->pc++;
+	v = frame_stackpop(frame);
+	a = frame->code->code[frame->pc++];
+	b = frame->code->code[frame->pc++];
+	c = frame->code->code[frame->pc++];
+	d = frame->code->code[frame->pc++];
+	def = (a << 24) | (b << 16) | (c << 8) | d;
+	a = frame->code->code[frame->pc++];
+	b = frame->code->code[frame->pc++];
+	c = frame->code->code[frame->pc++];
+	d = frame->code->code[frame->pc++];
+	npairs = (a << 24) | (b << 16) | (c << 8) | d;
+	targetaddr = baseaddr + def;
+	for (j = 0; j <= npairs; j++) {
+		a = frame->code->code[frame->pc++];
+		b = frame->code->code[frame->pc++];
+		c = frame->code->code[frame->pc++];
+		d = frame->code->code[frame->pc++];
+		match = (a << 24) | (b << 16) | (c << 8) | d;
+		a = frame->code->code[frame->pc++];
+		b = frame->code->code[frame->pc++];
+		c = frame->code->code[frame->pc++];
+		d = frame->code->code[frame->pc++];
+		offset = (a << 24) | (b << 16) | (c << 8) | d;
+		if (v.i == match) {
+			targetaddr = baseaddr + offset;
+			break;
+		}
+	}
+	frame->pc = targetaddr;
+	return NO_RETURN;
+}
+
+/* lor: boolean OR long */
+static int
+oplor(Frame *frame)
+{
+	Value v1, v2;
+
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	v1.l |= v2.l;
+	frame_stackpush(frame, v1);
+	return NO_RETURN;
+}
+
 /* lrem: remainder long */
 static int
 oplrem(Frame *frame)
@@ -1501,6 +2259,19 @@ oplsub(Frame *frame)
 	v2 = frame_stackpop(frame);
 	v1 = frame_stackpop(frame);
 	v1.l -= v2.l;
+	frame_stackpush(frame, v1);
+	return NO_RETURN;
+}
+
+/* lxor: boolean XOR long */
+static int
+oplxor(Frame *frame)
+{
+	Value v1, v2;
+
+	v2 = frame_stackpop(frame);
+	v1 = frame_stackpop(frame);
+	v1.l ^= v2.l;
 	frame_stackpush(frame, v1);
 	return NO_RETURN;
 }
@@ -1618,6 +2389,54 @@ oppop2(Frame *frame)
 	return NO_RETURN;
 }
 
+/* putstatic: set static field in class */
+static int
+opputstatic(Frame *frame)
+{
+	CONSTANT_Fieldref_info *fieldref;
+	CP *cp;
+	Value v;
+	U2 i;
+
+	v = frame_stackpop(frame);
+	i = frame->code->code[frame->pc++] << 8;
+	i |= frame->code->code[frame->pc++];
+	fieldref = &frame->class->constant_pool[i]->info.fieldref_info;
+	cp = resolvefield(frame->class, fieldref, NULL);
+	if (cp != NULL) {
+		switch (cp->tag) {
+		case CONSTANT_Integer:
+			memcpy(&cp->info.integer_info.bytes, &v.i, 4);
+			break;
+		case CONSTANT_Long:
+			memcpy(&cp->info.long_info.high_bytes, (&v.l) + 0, 4);
+			memcpy(&cp->info.long_info.low_bytes, (&v.l) + 4, 4);
+			break;
+		case CONSTANT_Float:
+			memcpy(&cp->info.float_info.bytes, &v.f, 4);
+			break;
+		case CONSTANT_Double:
+			memcpy(&cp->info.double_info.high_bytes, (&v.d) + 0, 4);
+			memcpy(&cp->info.double_info.low_bytes, (&v.d) + 4, 4);
+			break;
+		}
+	}
+	return NO_RETURN;
+}
+
+/* ret: return from subroutine */
+static int
+opret(Frame *frame)
+{
+	Value v;
+	U2 i;
+
+	i = frame->code->code[frame->pc++];
+	v = frame_localload(frame, i);
+	frame->pc = v.i;
+	return RETURN_VOID;
+}
+
 /* return: return void from method */
 static int
 opreturn(Frame *frame)
@@ -1695,7 +2514,7 @@ methodcall(ClassFile *class, Frame *frame, char *name, char *descriptor, U2 flag
 		 * return something.
 		 */
 		[NOP]             = opnop,
-		[ACONST_NULL]     = opnop,
+		[ACONST_NULL]     = opaconst_null,
 		[ICONST_M1]       = opiconst_m1,
 		[ICONST_0]        = opiconst_0,
 		[ICONST_1]        = opiconst_1,
@@ -1789,7 +2608,7 @@ methodcall(ClassFile *class, Frame *frame, char *name, char *descriptor, U2 flag
 		[DUP2]            = opdup2,
 		[DUP2_X1]         = opdup2_x1,
 		[DUP2_X2]         = opdup2_x2,
-		[SWAP]            = opnop,
+		[SWAP]            = opswap,
 		[IADD]            = opiadd,
 		[LADD]            = opladd,
 		[FADD]            = opfadd,
@@ -1814,58 +2633,58 @@ methodcall(ClassFile *class, Frame *frame, char *name, char *descriptor, U2 flag
 		[LNEG]            = oplneg,
 		[FNEG]            = opfneg,
 		[DNEG]            = opdneg,
-		[ISHL]            = opnop,
-		[LSHL]            = opnop,
-		[ISHR]            = opnop,
-		[LSHR]            = opnop,
-		[IUSHR]           = opnop,
-		[LUSHR]           = opnop,
-		[IAND]            = opnop,
-		[LAND]            = opnop,
-		[IOR]             = opnop,
-		[LOR]             = opnop,
-		[IXOR]            = opnop,
-		[LXOR]            = opnop,
+		[ISHL]            = opishl,
+		[LSHL]            = oplshl,
+		[ISHR]            = opishr,
+		[LSHR]            = oplshr,
+		[IUSHR]           = opiushr,
+		[LUSHR]           = oplushr,
+		[IAND]            = opiand,
+		[LAND]            = opland,
+		[IOR]             = opior,
+		[LOR]             = oplor,
+		[IXOR]            = opixor,
+		[LXOR]            = oplxor,
 		[IINC]            = opiinc,
-		[I2L]             = opnop,
-		[I2F]             = opnop,
-		[I2D]             = opnop,
-		[L2I]             = opnop,
-		[L2F]             = opnop,
-		[L2D]             = opnop,
-		[F2I]             = opnop,
-		[F2L]             = opnop,
-		[F2D]             = opnop,
-		[D2I]             = opnop,
-		[D2L]             = opnop,
-		[D2F]             = opnop,
+		[I2L]             = opi2l,
+		[I2F]             = opi2f,
+		[I2D]             = opi2d,
+		[L2I]             = opl2i,
+		[L2F]             = opl2f,
+		[L2D]             = opl2d,
+		[F2I]             = opf2i,
+		[F2L]             = opf2l,
+		[F2D]             = opf2d,
+		[D2I]             = opd2i,
+		[D2L]             = opd2l,
+		[D2F]             = opd2f,
 		[I2B]             = opi2b,
-		[I2C]             = opnop,
-		[I2S]             = opnop,
-		[LCMP]            = opnop,
-		[FCMPL]           = opnop,
-		[FCMPG]           = opnop,
-		[DCMPL]           = opnop,
-		[DCMPG]           = opnop,
-		[IFEQ]            = opnop,
-		[IFNE]            = opnop,
-		[IFLT]            = opnop,
-		[IFGE]            = opnop,
-		[IFGT]            = opnop,
-		[IFLE]            = opnop,
+		[I2C]             = opi2c,
+		[I2S]             = opi2s,
+		[LCMP]            = oplcmp,
+		[FCMPL]           = opfcmpl,
+		[FCMPG]           = opfcmpg,
+		[DCMPL]           = opdcmpl,
+		[DCMPG]           = opdcmpg,
+		[IFEQ]            = opifeq,
+		[IFNE]            = opifne,
+		[IFLT]            = opiflt,
+		[IFGE]            = opifge,
+		[IFGT]            = opifgt,
+		[IFLE]            = opifle,
 		[IF_ICMPEQ]       = opif_icmpeq,
 		[IF_ICMPNE]       = opif_icmpne,
 		[IF_ICMPLT]       = opif_icmplt,
 		[IF_ICMPGE]       = opif_icmpge,
 		[IF_ICMPGT]       = opif_icmpgt,
 		[IF_ICMPLE]       = opif_icmple,
-		[IF_ACMPEQ]       = opnop,
-		[IF_ACMPNE]       = opnop,
+		[IF_ACMPEQ]       = opif_acmpeq,
+		[IF_ACMPNE]       = opif_acmpne,
 		[GOTO]            = opgoto,
-		[JSR]             = opnop,
-		[RET]             = opnop,
+		[JSR]             = opjsr,
+		[RET]             = opret,
 		[TABLESWITCH]     = optableswitch,
-		[LOOKUPSWITCH]    = opnop,
+		[LOOKUPSWITCH]    = oplookupswitch,
 		[IRETURN]         = opireturn,
 		[LRETURN]         = opireturn,
 		[FRETURN]         = opireturn,
@@ -1873,7 +2692,7 @@ methodcall(ClassFile *class, Frame *frame, char *name, char *descriptor, U2 flag
 		[ARETURN]         = opireturn,
 		[RETURN]          = opreturn,
 		[GETSTATIC]       = opgetstatic,
-		[PUTSTATIC]       = opnop,
+		[PUTSTATIC]       = opputstatic,
 		[GETFIELD]        = opnop,
 		[PUTFIELD]        = opnop,
 		[INVOKEVIRTUAL]   = opinvokevirtual,
@@ -1892,10 +2711,10 @@ methodcall(ClassFile *class, Frame *frame, char *name, char *descriptor, U2 flag
 		[MONITOREXIT]     = opnop,
 		[WIDE]            = opnop,
 		[MULTIANEWARRAY]  = opmultianewarray,
-		[IFNULL]          = opnop,
-		[IFNONNULL]       = opnop,
-		[GOTO_W]          = opnop,
-		[JSR_W]           = opnop,
+		[IFNULL]          = opifnull,
+		[IFNONNULL]       = opifnonnull,
+		[GOTO_W]          = opgoto_w,
+		[JSR_W]           = opjsr_w,
 	};
 	Attribute *cattr;       /* Code_attribute */
 	Code_attribute *code;
@@ -1981,7 +2800,6 @@ java(int argc, char *argv[])
 	class = classload(argv[0]);
 	argc--;
 	argv++;
-	classinit(class);
 	frame = frame_push(NULL, NULL, 0, 1);
 	v.v = array_new(&argc, 1, sizeof (void *));
 	for (i = 0; i < argc; i++) {

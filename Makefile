@@ -1,6 +1,6 @@
 JAVAOBJS  := java.o  util.o class.o file.o memory.o native.o
 JAVAPOBJS := javap.o util.o class.o file.o
-OBJS      := java.o  util.o class.o file.o memory.o native.o
+OBJS      := java.o javap.o util.o class.o file.o memory.o native.o
 SRCS      := ${OBJS:.o=.c}
 
 JAVAP := javap
