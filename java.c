@@ -2375,8 +2375,7 @@ opnop(Frame *frame)
 static int
 oppop(Frame *frame)
 {
-	Value v;
-	v = frame_stackpop(frame);
+	frame_stackpop(frame);
 	return NO_RETURN;
 }
 
