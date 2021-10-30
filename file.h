@@ -1,8 +1,8 @@
 #ifndef FILE_H
 #define FILE_H
 
-#include <stdio.h>
 #include "class.h"
+#include <stdio.h>
 
 void file_free(ClassFile *class);
 int file_read(FILE *fp, ClassFile *class);

@@ -344,8 +344,8 @@ static void printcp(ClassFile *class) {
       printf("%gd", getfloat(cp[i]->info.integer_info.bytes));
       break;
     case CONSTANT_Long:
-      printf("%lld", getlong(cp[i]->info.long_info.high_bytes,
-                             cp[i]->info.long_info.low_bytes));
+      printf("%ld", getlong(cp[i]->info.long_info.high_bytes,
+                            cp[i]->info.long_info.low_bytes));
       i++;
       break;
     case CONSTANT_Double:
@@ -609,7 +609,7 @@ static void printconstant(ClassFile *class, Field *field) {
            (long)getint(class->constant_pool[index]->info.integer_info.bytes));
     break;
   case CONSTANT_Long:
-    printf("long %lld",
+    printf("long %ld",
            getlong(class->constant_pool[index]->info.long_info.high_bytes,
                    class->constant_pool[index]->info.long_info.low_bytes));
     break;

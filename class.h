@@ -1,8 +1,8 @@
 #ifndef CLASS_H
 #define CLASS_H
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #define OP_WIDE -1
 #define OP_TABLESWITCH -2
