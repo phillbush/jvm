@@ -1,6 +1,7 @@
 #include "native.h"
 #include "class.h"
 #include "memory.h"
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -71,6 +72,17 @@ void natprint(Frame *frame, char *type) {
   }
 }
 
+void natstringcharAt(Frame *frame, char *type) {
+  assert(strcmp(type, "(I)C") == 0);
+  Value index = frame_stackpop(frame);
+  Value receiver = frame_stackpop(frame);
+  // TODO(max): UTF-16 index
+  const char *str = (char *)receiver.v->obj;
+  Value result;
+  result.i = str[index.i];
+  frame_stackpush(frame, result);
+}
+
 JavaClass native_javaclass(char *classname) {
   size_t i;
 
@@ -111,6 +123,13 @@ int native_javamethod(Frame *frame, JavaClass jclass, char *name, char *type) {
       natprint(frame, type);
       return 0;
     }
+    break;
+  case LANG_STRING:
+    if (strcmp(name, "charAt") == 0) {
+      natstringcharAt(frame, type);
+      return 0;
+    }
+    break;
   }
   return -1;
 }
