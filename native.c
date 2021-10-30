@@ -83,6 +83,16 @@ void natstringcharAt(Frame *frame, char *type) {
   frame_stackpush(frame, result);
 }
 
+void natstringlength(Frame *frame, char *type) {
+  assert(strcmp(type, "()I") == 0);
+  Value receiver = frame_stackpop(frame);
+  // TODO(max): UTF-16
+  const char *str = (char *)receiver.v->obj;
+  Value result;
+  result.i = strlen(str);
+  frame_stackpush(frame, result);
+}
+
 JavaClass native_javaclass(char *classname) {
   size_t i;
 
@@ -127,6 +137,10 @@ int native_javamethod(Frame *frame, JavaClass jclass, char *name, char *type) {
   case LANG_STRING:
     if (strcmp(name, "charAt") == 0) {
       natstringcharAt(frame, type);
+      return 0;
+    }
+    if (strcmp(name, "length") == 0) {
+      natstringlength(frame, type);
       return 0;
     }
     break;
