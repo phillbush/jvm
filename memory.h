@@ -1,17 +1,18 @@
 /* virtual machine frame structure */
 typedef struct Frame {
-	struct Frame           *next;
-	struct ClassFile       *class;          /* constant pool */
-	union  Value           *local;          /* local variable table */
-	union  Value           *stack;          /* operand stack */
-	size_t                  max_locals;     /* local variable table */
-	size_t                  max_stack;      /* operand stack */
-	size_t                  nstack;         /* number of values on operand stack */
-	struct Code_attribute  *code;           /* array of instructions */
-	U2                      pc;             /* program counter */
+  struct Frame *next;
+  struct ClassFile *class;     /* constant pool */
+  union Value *local;          /* local variable table */
+  union Value *stack;          /* operand stack */
+  size_t max_locals;           /* local variable table */
+  size_t max_stack;            /* operand stack */
+  size_t nstack;               /* number of values on operand stack */
+  struct Code_attribute *code; /* array of instructions */
+  U2 pc;                       /* program counter */
 } Frame;
 
-Frame *frame_push(Code_attribute *code, ClassFile *class, U2 max_locals, U2 max_stack);
+Frame *frame_push(Code_attribute *code, ClassFile *class, U2 max_locals,
+                  U2 max_stack);
 int frame_pop(void);
 void frame_del(void);
 void frame_stackpush(Frame *frame, Value value);
