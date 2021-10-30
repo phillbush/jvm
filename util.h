@@ -1,3 +1,6 @@
+#ifndef UTIL_H
+#define UTIL_H
+
 #define LEN(x) (sizeof(x) / sizeof *(x))
 
 void setprogname(char *s);
@@ -14,3 +17,5 @@ void warn(const char *fmt, ...);
 void warnx(const char *fmt, ...);
 
 extern int optind, optopt;
+
+#endif /* ifndef UTIL_H */

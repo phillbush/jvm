@@ -1,3 +1,8 @@
+#ifndef MEMORY_H
+#define MEMORY_H
+
+#include "class.h"
+
 /* virtual machine frame structure */
 typedef struct Frame {
   struct Frame *next;
@@ -23,3 +28,5 @@ Heap *heap_alloc(int32_t nmemb, size_t size);
 void *heap_use(Heap *entry);
 int heap_free(Heap *heap);
 Heap *array_new(int32_t *nmemb, U1 dimension, size_t size);
+
+#endif /* ifndef MEMORY_H */

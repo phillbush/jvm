@@ -1,7 +1,5 @@
 #include "class.h"
 #include "util.h"
-#include <stddef.h>
-#include <stdint.h>
 #include <string.h>
 
 static int noperands[] = {

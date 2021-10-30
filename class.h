@@ -1,3 +1,9 @@
+#ifndef CLASS_H
+#define CLASS_H
+
+#include <stdint.h>
+#include <stddef.h>
+
 #define OP_WIDE -1
 #define OP_TABLESWITCH -2
 #define OP_LOOKUPSWITCH -3
@@ -574,3 +580,5 @@ void class_getnameandtype(ClassFile *class, U2 index, char **name, char **type);
 Method *class_getmethod(ClassFile *class, char *name, char *descr);
 Field *class_getfield(ClassFile *class, char *name, char *descr);
 int class_istopclass(ClassFile *class);
+
+#endif /* ifndef CLASS_H */
