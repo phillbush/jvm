@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -14,7 +15,7 @@ static struct {
 	{NULL,                  NONE_CLASS},
 };
 
-void
+static void
 natprintln(Frame *frame, char *type)
 {
 	Value vfp, v;
@@ -37,7 +38,7 @@ natprintln(Frame *frame, char *type)
 		else if (strcmp(type, "(I)V") == 0)
 			fprintf((FILE *)vfp.v->obj, "%d\n", v.i);
 		else if (strcmp(type, "(J)V") == 0)
-			fprintf((FILE *)vfp.v->obj, "%ld\n", v.l);
+			fprintf((FILE *)vfp.v->obj, "%lld\n", (long long int)v.l);
 		else if (strcmp(type, "(S)V") == 0)
 			fprintf((FILE *)vfp.v->obj, "%d\n", v.i);
 		else if (strcmp(type, "(Z)V") == 0)
@@ -45,7 +46,7 @@ natprintln(Frame *frame, char *type)
 	}
 }
 
-void
+static void
 natprint(Frame *frame, char *type)
 {
 	Value vfp, v;
@@ -66,12 +67,27 @@ natprint(Frame *frame, char *type)
 		else if (strcmp(type, "(I)V") == 0)
 			fprintf((FILE *)vfp.v->obj, "%d", v.i);
 		else if (strcmp(type, "(J)V") == 0)
-      fprintf((FILE *)vfp.v->obj, "%ld", v.l);
+			fprintf((FILE *)vfp.v->obj, "%lld", (long long int)v.l);
 		else if (strcmp(type, "(S)V") == 0)
 			fprintf((FILE *)vfp.v->obj, "%d", v.i);
 		else if (strcmp(type, "(Z)V") == 0)
 			fprintf((FILE *)vfp.v->obj, "%d", v.i);
 	}
+}
+
+static void
+natcharat(Frame *frame, char *type)
+{
+	Value index, receiver, result;
+	const char *str;
+
+	// TODO(max): UTF-16 index
+	assert(strcmp(type, "(I)C") == 0);
+	index = frame_stackpop(frame);
+	receiver = frame_stackpop(frame);
+	str = (char *)receiver.v->obj;
+	result.i = str[index.i];
+	frame_stackpush(frame, result);
 }
 
 JavaClass
@@ -120,6 +136,13 @@ native_javamethod(Frame *frame, JavaClass jclass, char *name, char *type)
 			natprint(frame, type);
 			return 0;
 		}
+		break;
+	case LANG_STRING:
+		if (strcmp(name, "charAt") == 0) {
+			natcharat(frame, type);
+			return 0;
+		}
+		break;
 	}
 	return -1;
 }
