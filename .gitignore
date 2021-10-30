@@ -1,0 +1,5 @@
+*.o
+*.class
+/java
+/javap
+tags
