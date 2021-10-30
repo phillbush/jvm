@@ -1,4 +1,4 @@
-public class HelloWorld {
+public class InvokeSpecialNative {
   static final String str = "Hello world!";
   public static void main(String[] args) {
     for (int i = 0; i < str.length(); i++) {
