@@ -121,29 +121,48 @@ void *native_javaobj(JavaClass jclass, char *objname, char *objtype) {
   return NULL;
 }
 
+typedef void (*NativeMethod)(Frame *frame, char *type);
+
+typedef struct {
+  const char *name;
+  NativeMethod method;
+} NativeMethodDecl;
+
+typedef struct {
+  JavaClass class;
+  // Terminated by {NULL, NULL}
+  NativeMethodDecl *methods;
+} NativeClass;
+
+static const NativeClass kNativeClasses[] = {
+    [IO_PRINTSTREAM] = {IO_PRINTSTREAM,
+                        (NativeMethodDecl[]){
+                            {"print", natprint},
+                            {"println", natprintln},
+                            {NULL, NULL},
+                        }},
+    [LANG_STRING] = {LANG_STRING,
+                     (NativeMethodDecl[]){
+                         {"charAt", natstringcharAt},
+                         {"length", natstringlength},
+                         {NULL, NULL},
+                     }},
+    [LANG_SYSTEM] =
+        {
+            LANG_SYSTEM,
+            (NativeMethodDecl[]){
+                {NULL, NULL},
+            },
+        },
+};
+
 int native_javamethod(Frame *frame, JavaClass jclass, char *name, char *type) {
-  switch (jclass) {
-  default:
-    break;
-  case IO_PRINTSTREAM:
-    if (strcmp(name, "println") == 0) {
-      natprintln(frame, type);
-      return 0;
-    } else if (strcmp(name, "print") == 0) {
-      natprint(frame, type);
+  NativeClass class = kNativeClasses[jclass];
+  for (U8 i = 0; class.methods[i].name != NULL; i++) {
+    if (strcmp(name, class.methods[i].name) == 0) {
+      class.methods[i].method(frame, type);
       return 0;
     }
-    break;
-  case LANG_STRING:
-    if (strcmp(name, "charAt") == 0) {
-      natstringcharAt(frame, type);
-      return 0;
-    }
-    if (strcmp(name, "length") == 0) {
-      natstringlength(frame, type);
-      return 0;
-    }
-    break;
   }
   return -1;
 }
