@@ -78,4 +78,4 @@ ${TESTJ}: java
 clean:
 	-rm ${JAVA} ${JAVAP} ${OBJS} ${CLASSES} 2>/dev/null
 
-.PHONY: all clean lint testp testj
+.PHONY: all clean lint testp testj ${TESTP} ${TESTJ}
