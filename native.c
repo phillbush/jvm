@@ -37,7 +37,7 @@ natprintln(Frame *frame, char *type)
 		else if (strcmp(type, "(I)V") == 0)
 			fprintf((FILE *)vfp.v->obj, "%d\n", v.i);
 		else if (strcmp(type, "(J)V") == 0)
-			fprintf((FILE *)vfp.v->obj, "%lld\n", v.l);
+			fprintf((FILE *)vfp.v->obj, "%ld\n", v.l);
 		else if (strcmp(type, "(S)V") == 0)
 			fprintf((FILE *)vfp.v->obj, "%d\n", v.i);
 		else if (strcmp(type, "(Z)V") == 0)
@@ -66,7 +66,7 @@ natprint(Frame *frame, char *type)
 		else if (strcmp(type, "(I)V") == 0)
 			fprintf((FILE *)vfp.v->obj, "%d", v.i);
 		else if (strcmp(type, "(J)V") == 0)
-			fprintf((FILE *)vfp.v->obj, "%lld", v.l);
+      fprintf((FILE *)vfp.v->obj, "%ld", v.l);
 		else if (strcmp(type, "(S)V") == 0)
 			fprintf((FILE *)vfp.v->obj, "%d", v.i);
 		else if (strcmp(type, "(Z)V") == 0)
