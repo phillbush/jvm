@@ -458,7 +458,7 @@ static int
 readcode(FILE *fp, U1 **code, ClassFile *class, U4 count)
 {
 	int32_t j, npairs, off, high, low;
-	U4 base, i;
+	I8 base, i;
 	U2 u;
 
 	if (count == 0) {
