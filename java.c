@@ -210,7 +210,7 @@ resolvefield(ClassFile *class, CONSTANT_Fieldref_info *fieldref, Heap **p)
 		*p = NULL;
 	classname = class_getclassname(class, fieldref->class_index);
 	class_getnameandtype(class, fieldref->name_and_type_index, &name, &type);
-	if ((jclass = native_javaclass(classname)) != 0) {
+	if ((jclass = native_javaclass(classname)) != NONE_CLASS) {
 		if (p != NULL) {
 			(*p) = heap_alloc(0, 0);
 			((Heap *)*p)->obj = native_javaobj(jclass, name, type);
@@ -1675,7 +1675,7 @@ opinvokestatic(Frame *frame)
 	methodref = &frame->class->constant_pool[i]->info.methodref_info;
 	classname = class_getclassname(frame->class, methodref->class_index);
 	class_getnameandtype(frame->class, methodref->name_and_type_index, &name, &type);
-	if ((jclass = native_javaclass(classname)) != 0) {
+	if ((jclass = native_javaclass(classname)) != NONE_CLASS) {
 		native_javamethod(frame, jclass, name, type);
 	} else if ((class = classload(classname)) != NULL) {
 		if (methodcall(class, frame, name, type, ACC_STATIC) == -1) {
@@ -1702,7 +1702,7 @@ opinvokevirtual(Frame *frame)
 	methodref = &frame->class->constant_pool[i]->info.methodref_info;
 	classname = class_getclassname(frame->class, methodref->class_index);
 	class_getnameandtype(frame->class, methodref->name_and_type_index, &name, &type);
-	if ((jclass = native_javaclass(classname)) != 0) {
+	if ((jclass = native_javaclass(classname)) != NONE_CLASS) {
 		if (native_javamethod(frame, jclass, name, type) == -1) {
 			errx(EXIT_FAILURE, "error invoking native method %s", name);
 		}

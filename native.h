@@ -1,7 +1,8 @@
 typedef enum JavaClass {
-	NONE_CLASS = 0,
-	LANG_SYSTEM,
-	IO_PRINTSTREAM,
+	NONE_CLASS     = -1,
+	LANG_SYSTEM    = 0,
+	LANG_STRING    = 1,
+	IO_PRINTSTREAM = 2,
 } JavaClass;
 
 JavaClass native_javaclass(char *classname);

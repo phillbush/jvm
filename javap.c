@@ -350,13 +350,13 @@ printcp(ClassFile *class)
 			printf("%s", cp[i]->info.utf8_info.bytes);
 			break;
 		case CONSTANT_Integer:
-			printf("%ld", (long)getint(cp[i]->info.integer_info.bytes));
+			printf("%ld", (long int)getint(cp[i]->info.integer_info.bytes));
 			break;
 		case CONSTANT_Float:
 			printf("%gd", getfloat(cp[i]->info.integer_info.bytes));
 			break;
 		case CONSTANT_Long:
-			printf("%ld", getlong(cp[i]->info.long_info.high_bytes, cp[i]->info.long_info.low_bytes));
+			printf("%lld", (long long int)getlong(cp[i]->info.long_info.high_bytes, cp[i]->info.long_info.low_bytes));
 			i++;
 			break;
 		case CONSTANT_Double:
@@ -619,10 +619,10 @@ printconstant(ClassFile *class, Field *field)
 	printf("    ConstantValue: ");
 	switch (class->constant_pool[index]->tag) {
 	case CONSTANT_Integer:
-		printf("int %ld", (long)getint(class->constant_pool[index]->info.integer_info.bytes));
+		printf("int %ld", (long int)getint(class->constant_pool[index]->info.integer_info.bytes));
 		break;
 	case CONSTANT_Long:
-		printf("long %ld", getlong(class->constant_pool[index]->info.long_info.high_bytes, class->constant_pool[index]->info.long_info.low_bytes));
+		printf("long %lld", (long long int)getlong(class->constant_pool[index]->info.long_info.high_bytes, class->constant_pool[index]->info.long_info.low_bytes));
 		break;
 	case CONSTANT_Float:
 		printf("float %gf", getfloat(class->constant_pool[index]->info.float_info.bytes));

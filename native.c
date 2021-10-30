@@ -6,15 +6,6 @@
 #include "memory.h"
 #include "native.h"
 
-static struct {
-	char *name;
-	JavaClass jclass;
-} jclasstab[] = {
-	{"java/lang/System",    LANG_SYSTEM},
-	{"java/io/PrintStream", IO_PRINTSTREAM},
-	{NULL,                  NONE_CLASS},
-};
-
 static void
 natprintln(Frame *frame, char *type)
 {
@@ -104,6 +95,35 @@ natstringlength(Frame *frame, char *type)
 	frame_stackpush(frame, result);
 }
 
+static struct {
+	char *name;
+	JavaClass jclass;
+} jclasstab[] = {
+	{"java/lang/System",    LANG_SYSTEM},
+	{"java/lang/String",    LANG_STRING},
+	{"java/io/PrintStream", IO_PRINTSTREAM},
+	{NULL,                  NONE_CLASS},
+};
+
+static struct Native {
+	const char *name;
+	void (*method)(Frame *frame, char *type);
+} *nativetab[] = {
+	[IO_PRINTSTREAM] = (struct Native[]){
+		{"print", natprint},
+		{"println", natprintln},
+		{NULL, NULL},
+	},
+	[LANG_STRING] = (struct Native[]){
+		{"charAt", natstringcharat},
+		{"length", natstringlength},
+		{NULL, NULL},
+	},
+	[LANG_SYSTEM] = (struct Native[]){
+		{NULL, NULL},
+	},
+};
+
 JavaClass
 native_javaclass(char *classname)
 {
@@ -139,28 +159,13 @@ native_javaobj(JavaClass jclass, char *objname, char *objtype)
 int
 native_javamethod(Frame *frame, JavaClass jclass, char *name, char *type)
 {
-	switch (jclass) {
-	default:
-		break;
-	case IO_PRINTSTREAM:
-		if (strcmp(name, "println") == 0) {
-			natprintln(frame, type);
-			return 0;
-		} else if (strcmp(name, "print") == 0) {
-			natprint(frame, type);
+	U8 i;
+
+	for (i = 0; nativetab[jclass][i].name != NULL; i++) {
+		if (strcmp(name, nativetab[jclass][i].name) == 0) {
+			nativetab[jclass][i].method(frame, type);
 			return 0;
 		}
-		break;
-	case LANG_STRING:
-		if (strcmp(name, "charAt") == 0) {
-			natstringcharat(frame, type);
-			return 0;
-		}
-		if (strcmp(name, "length") == 0) {
-			natstringlength(frame, type);
-			return 0;
-		}
-		break;
 	}
 	return -1;
 }
