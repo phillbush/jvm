@@ -2079,8 +2079,7 @@ static int opnop(Frame *frame) {
 
 /* pop: pop the top operand stack value */
 static int oppop(Frame *frame) {
-  Value v;
-  v = frame_stackpop(frame);
+  frame_stackpop(frame);
   return NO_RETURN;
 }
 
