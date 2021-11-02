@@ -1703,9 +1703,9 @@ opinvokevirtual(Frame *frame)
 	classname = class_getclassname(frame->class, methodref->class_index);
 	class_getnameandtype(frame->class, methodref->name_and_type_index, &name, &type);
 	if ((jclass = native_javaclass(classname)) != 0) {
-    if (native_javamethod(frame, jclass, name, type) == -1) {
-      errx(EXIT_FAILURE, "error invoking native method %s", name);
-    }
+		if (native_javamethod(frame, jclass, name, type) == -1) {
+			errx(EXIT_FAILURE, "error invoking native method %s", name);
+		}
 	} else if ((class = classload(classname)) != NULL) {
 		if (methodcall(class, NULL, name, type, ACC_STATIC) == -1) {
 			errx(EXIT_FAILURE, "could not find method %s", name);
