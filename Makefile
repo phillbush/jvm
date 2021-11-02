@@ -11,6 +11,7 @@ CLASSES := tests/HelloWorld.class \
            tests/Echo.class \
            tests/Int.class \
            tests/Multi.class \
+           tests/StringTest.class \
            tests/TableSwitch.class \
            tests/Vector1.class \
            tests/Vector2.class
